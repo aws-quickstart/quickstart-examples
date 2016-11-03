@@ -6,3 +6,7 @@
 	path = submodules/quickstart-linux-bastion
 	url = git@github.com:aws-quickstart/quickstart-linux-bastion.git
 	branch = master
+[submodule "submodules/quickstart-microsoft-rdgateway"]
+	path = submodules/quickstart-microsoft-rdgateway
+	url = git@github.com:aws-quickstart/quickstart-microsoft-rdgateway.git
+	branch = master
