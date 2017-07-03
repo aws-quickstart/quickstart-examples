@@ -120,11 +120,11 @@
             "Type": "String"
         },
         "PrivateSubnet1ID": {
-            "Description": "ID of private subnet 1 in Availability Zone 1 for the Software (e.g., subnet-a0246dcd)",
+            "Description": "ID of private subnet 1 in Availability Zone 1 for the Workload (e.g., subnet-a0246dcd)",
             "Type": "AWS::EC2::Subnet::Id"
         },
         "PrivateSubnet2ID": {
-            "Description": "ID of private subnet 2 in Availability Zone 2 for the Software (e.g., subnet-b1f432cd)",
+            "Description": "ID of private subnet 2 in Availability Zone 2 for the Workload (e.g., subnet-b1f432cd)",
             "Type": "AWS::EC2::Subnet::Id"
         },
         "PublicSubnet1ID": {
@@ -152,7 +152,7 @@
         "S3BucketName": {
             "AllowedPattern": "^[a-z0-9][a-z0-9-.]*$",
             "Default": "type-unique-value-here-in-lowercase",
-            "Description": "Name of the S3 bucket that will be created for your software to store data. Enter a unique name that does not include uppercase characters.",
+            "Description": "Name of the S3 bucket that will be created for your workload to store data. Enter a unique name that does not include uppercase characters.",
             "Type": "String"
         },
         "VPCID": {
@@ -186,7 +186,7 @@
             ],
             "ConstraintDescription": "Must contain valid instance type",
             "Default": "m4.xlarge",
-            "Description": "Type of EC2 instance for the Workload instances (Share + Repository)",
+            "Description": "Type of EC2 instance for the Workload instances",
             "Type": "String"
         },
         "WorkloadNodesDesiredCapacity": {

@@ -248,12 +248,12 @@
             ],
             "ConstraintDescription": "Must contain valid instance type",
             "Default": "m4.xlarge",
-            "Description": "EC2 instance type for the custom software instances ",
+            "Description": "EC2 instance type for the Workload instances",
             "Type": "String"
         },
         "WorkloadNodesDesiredCapacity": {
             "Default": "2",
-            "Description": "The desired capacity for the custom software nodes Auto Scaling group",
+            "Description": "The desired capacity for the Workload nodes Auto Scaling group",
             "Type": "String"
         },
         "WorkloadNodesMaxSize": {
