@@ -500,9 +500,9 @@
                             "cleanup"
                         ]
                     },
-                    "Install": {},
-                    "Configure": {},
-                    "Finalize": {}
+                    "install": {},
+                    "configure": {},
+                    "cleanup": {}
                 }
             },
             "Properties": {
