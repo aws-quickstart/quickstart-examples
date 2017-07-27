@@ -206,6 +206,25 @@
         }
     },
     "Rules": {
+        "KeyPairsNotEmpty": {
+            "Assertions": [
+                {
+                    "Assert": {
+                        "Fn::Not": [
+                            {
+                                "Fn::EachMemberEquals": [
+                                    {
+                                        "Fn::RefAll": "AWS::EC2::KeyPair::KeyName"
+                                    },
+                                    ""
+                                ]
+                            }
+                        ]
+                    },
+                    "AssertDescription": "All key pair parameters must not be empty"
+                }
+            ]
+        },
         "SubnetsInVPC": {
             "Assertions": [
                 {
