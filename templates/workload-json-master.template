@@ -211,7 +211,7 @@
         "S3BucketName": {
             "AllowedPattern": "^[a-z0-9][a-z0-9-.]*$",
             "Default": "type-unique-value-here-in-lowercase",
-            "Description": "Name of the S3 bucket that will be created for Alfresco to store data. Enter a unique name that does not include uppercase characters.",
+            "Description": "Name of the S3 bucket that will be created for your workload to store data. Enter a unique name that does not include uppercase characters.",
             "Type": "String"
         },
         "VPCCIDR": {
