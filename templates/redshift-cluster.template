@@ -92,7 +92,7 @@
             "Type": "String"
         },
         "MasterUserPassword": {
-            "AllowedPattern": "[a-zA-Z0-9]*",
+            "AllowedPattern": "^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?!.*[@/\\\"']).*$",
             "ConstraintDescription": "Must contain only alphanumeric characters.",
             "Description": "The password associated with the master user account for the Amazon Redshift cluster that is being created.",
             "MaxLength": "64",
