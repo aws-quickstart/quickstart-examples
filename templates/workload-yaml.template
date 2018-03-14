@@ -188,35 +188,35 @@ Rules:
 Mappings:
   AWSAMIRegionMap:
     AMI:
-      AMZNLINUXHVM: amzn-ami-hvm-2017.09.1.20180115-x86_64-gp2
+      AMZNLINUXHVM: amzn-ami-hvm-2017.09.1.20180307-x86_64-gp2
     ap-northeast-1:
-      AMZNLINUXHVM: ami-ceafcba8
+      AMZNLINUXHVM: ami-a77c30c1
     ap-northeast-2:
-      AMZNLINUXHVM: ami-863090e8
+      AMZNLINUXHVM: ami-5e1ab730
     ap-south-1:
-      AMZNLINUXHVM: ami-531a4c3c
+      AMZNLINUXHVM: ami-7c87d913
     ap-southeast-1:
-      AMZNLINUXHVM: ami-68097514
+      AMZNLINUXHVM: ami-e2adf99e
     ap-southeast-2:
-      AMZNLINUXHVM: ami-942dd1f6
+      AMZNLINUXHVM: ami-43874721
     ca-central-1:
-      AMZNLINUXHVM: ami-a954d1cd
+      AMZNLINUXHVM: ami-5b55d23f
     eu-central-1:
-      AMZNLINUXHVM: ami-5652ce39
+      AMZNLINUXHVM: ami-ac442ac3
     eu-west-1:
-      AMZNLINUXHVM: ami-d834aba1
+      AMZNLINUXHVM: ami-3bfab942
     eu-west-2:
-      AMZNLINUXHVM: ami-403e2524
+      AMZNLINUXHVM: ami-dff017b8
     sa-east-1:
-      AMZNLINUXHVM: ami-84175ae8
+      AMZNLINUXHVM: ami-5339733f
     us-east-1:
-      AMZNLINUXHVM: ami-97785bed
+      AMZNLINUXHVM: ami-1853ac65
     us-east-2:
-      AMZNLINUXHVM: ami-f63b1193
+      AMZNLINUXHVM: ami-25615740
     us-west-1:
-      AMZNLINUXHVM: ami-824c4ee2
+      AMZNLINUXHVM: ami-bf5540df
     us-west-2:
-      AMZNLINUXHVM: ami-f2d3638a
+      AMZNLINUXHVM: ami-d874e0a0
 Resources:
   NotificationTopic:
     Type: AWS::SNS::Topic
