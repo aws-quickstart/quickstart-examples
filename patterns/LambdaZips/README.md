@@ -1,7 +1,7 @@
 # Lambda Zips
 
-This pattern enables templates that include Lambda functions to be deployed in any region without needing additional 
-regional buckets containing function zips.
+This pattern enables templates that include Lambda functions to be deployed in any region without needing to manually 
+create and populate additional regional buckets containing function zips.
 
 ## Example implementation
 
