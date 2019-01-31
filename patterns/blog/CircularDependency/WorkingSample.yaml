@@ -1,0 +1,48 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  VPCID:
+    Description: ID of the VPC (e.g., vpc-0343606e)
+    Type: AWS::EC2::VPC::Id
+  SubnetID:
+    Description: ID of the private subnet 1 in Availability Zone 1 (e.g., subnet-a0246dcd)
+    Type: AWS::EC2::Subnet::Id
+  KeyPairName:
+    Description: Public/private key pairs allow you to securely connect to your instance
+      after it launches
+    Type: AWS::EC2::KeyPair::KeyName
+  WS2016FULLBASE:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-windows-latest/Windows_Server-2016-English-Full-Base'
+Resources:
+  MyEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref 'WS2016FULLBASE'
+      InstanceType: m4.large
+      SubnetId: !Ref 'SubnetID'
+      Tags:
+        - Key: Name
+          Value: TestBox
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: '80'
+            VolumeType: gp2
+      SecurityGroupIds:
+        - !Ref 'InstanceSG'
+      KeyName: !Ref 'KeyPairName'
+  InstanceSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Domain Controllers Security Group
+      VpcId:
+        Ref: VPCID
+  InstanceSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: Security Group Rule between Domain Controllers 
+      GroupId: !Ref InstanceSG
+      IpProtocol: tcp 
+      FromPort: 80 
+      ToPort: 80
+      SourceSecurityGroupId: !Ref InstanceSG
