@@ -1,0 +1,50 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  DevAccountId:
+    Type: String
+  DevAccountRoleName:
+    Type: String
+    Default: XaccBlogDevAccountRole
+  CentralAccountRoleName:
+    Type: String
+    Default: XaccBlogCentralAccountRole
+Resources:
+  CentralAccountRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: !Ref CentralAccountRoleName 
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+          Action: sts:AssumeRole
+      Policies:
+      - PolicyName: AssumeRole
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            - cloudformation:DescribeStacks
+            - lambda:AddPermission
+            - lambda:RemovePermission
+            - events:PutRule
+            - events:DeleteRule
+            - events:PutTargets
+            - events:RemoveTargets
+            Resource:  "*"
+          #- Effect: Allow
+          #  Action:
+          #  - iam:PassRole
+          #  Resource:  !GetAtt ControlPlaneRole.Arn
+          - Action: "sts:AssumeRole"
+            Effect: Allow
+            Resource: !Sub "arn:aws:iam::${DevAccountId}:role/${DevAccountRoleName}"
+Outputs:
+  CentralAccountRoleArn:
+    Value: !GetAtt CentralAccountRole.Arn   
