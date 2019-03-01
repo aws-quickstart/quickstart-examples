@@ -1,1 +1,5 @@
+ci/taskcat_project_override.json
+ci/taskcat-dev*
 .DS_Store
+venv/
+.idea/
