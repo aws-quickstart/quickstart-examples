@@ -1,0 +1,16 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  Tag: 
+    Type: String
+Resources:
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      Tags:
+      - Key: cross-account
+        Value: !Ref Tag
+Outputs:
+  AccountId:
+    Value: !Ref AWS::AccountId
+  BucketName:
+    Value: !Ref S3Bucket

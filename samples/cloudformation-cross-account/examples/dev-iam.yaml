@@ -1,0 +1,45 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  CentralAccountId:
+    Type: String
+  CentralAccountRoleName:
+    Type: String
+    Default: XaccBlogCentralAccountRole
+  DevAccountRoleName:
+    Type: String
+    Default: XaccBlogDevAccountRole
+Resources:
+  DevAccountRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref DevAccountRoleName
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            AWS: !Sub 'arn:aws:iam::${CentralAccountId}:role/${CentralAccountRoleName}'
+          Action: sts:AssumeRole
+      Path: /
+      Policies:
+      - PolicyName: CfnStackAssumeRole
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action: 
+            - 'cloudformation:CreateStack'
+            - 'cloudformation:UpdateStack'
+            - 'cloudformation:DeleteStack'
+            - 'cloudformation:DescribeStacks'
+            Resource: "*"
+          - Effect: Allow
+            Action: 
+            - 's3:CreateBucket'
+            - 's3:DeleteBucket'
+            - 's3:DeleteBucket*'
+            - 's3:PutBucket*'
+            Resource: "*"
+Outputs:
+  DevAccountRoleArn:
+    Value: !GetAtt DevAccountRole.Arn
