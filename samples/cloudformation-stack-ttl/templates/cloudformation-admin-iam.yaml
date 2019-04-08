@@ -1,0 +1,23 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Administrator access service role for CloudFormation 
+Resources:
+  CFNAdminRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: "Allow"
+          Principal:
+            Service: ["cloudformation.amazonaws.com"]
+          Action: "sts:AssumeRole"
+      Path: "/"
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/AdministratorAccess'
+Outputs:
+  CFNAdminRole:
+    Description: CloudFormation admin access service role.
+    Value: !Ref CFNAdminRole
+  CFNAdminRoleArn:
+    Description: CloudFormation admin access service role ARN.
+    Value: !GetAtt CFNAdminRole.Arn  

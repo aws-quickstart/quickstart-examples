@@ -1,0 +1,17 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Demo stack, creates one SSM parameter and gets deleted after 5 minutes.
+Resources:
+  DemoParameter:
+    Type: "AWS::SSM::Parameter"
+    Properties:
+      Type: "String"
+      Value: "date"
+      Description: "SSM Parameter for running date command."
+      AllowedPattern: "^[a-zA-Z]{1,10}$"
+  DeleteAfterTTLStack:
+    Type: "AWS::CloudFormation::Stack"
+    Properties:
+      TemplateURL: 'https://s3.amazonaws.com/quickstart-examples/samples/cloudformation-stack-ttl/templates/cloudformation-stack-ttl.yaml'
+      Parameters:
+        StackName: !Ref 'AWS::StackName'
+        TTL: '5'
