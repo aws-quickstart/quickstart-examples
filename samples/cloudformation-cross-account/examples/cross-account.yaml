@@ -14,7 +14,7 @@ Resources:
     Properties:
       ServiceToken: !GetAtt CfnAssumeRoleLambda.Arn
       RoleArn: !Ref DevRoleArn
-      TemplateURL: https://s3.amazonaws.com/jmmccon-qs-dev/xacc-blog/examples/bucket.yaml
+      TemplateURL: https://s3.amazonaws.com/aws-quickstart/quickstart-examples/samples/cloudformation-cross-account/examples/bucket.yaml
       ParentStackId: !Ref AWS::StackId
       Region: ap-northeast-1
       CfnParameters:
@@ -25,7 +25,7 @@ Resources:
     Properties:
       ServiceToken: !GetAtt CfnAssumeRoleLambda.Arn
       RoleArn: !Ref DevRoleArn
-      TemplateURL: https://s3.amazonaws.com/jmmccon-qs-dev/xacc-blog/examples/bucket.yaml
+      TemplateURL: https://s3.amazonaws.com/aws-quickstart/quickstart-examples/samples/cloudformation-cross-account/examples/bucket.yaml
       ParentStackId: !Ref AWS::StackId
       Region: eu-north-1
       CfnParameters:
@@ -39,8 +39,8 @@ Resources:
       Runtime: python3.6
       Timeout: 900
       Code:
-        S3Bucket: 'jmmccon-qs-dev'
-        S3Key: 'xacc-blog/functions/packages/CfnStackAssumeRole/lambda.zip'
+        S3Bucket: 'aws-quickstart'
+        S3Key: 'quickstart-examples/samples/cloudformation-cross-account/functions/packages/CfnStackAssumeRole/lambda.zip'
 Outputs:
   DestinationAccountId:
     Value: !GetAtt DevStackTokyo.AccountId
