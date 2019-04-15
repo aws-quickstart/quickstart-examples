@@ -9,7 +9,7 @@ Parameters:
     Description: The IAM role to be assumed and used to create a CloudFormation stack containing an S3 bucket.
 Resources:
   DevStackTokyo:
-    Type: Custom::CloudFormationStackAssumeRole
+    Type: Custom::CfnStackMaker
     Version: 1.0
     Properties:
       ServiceToken: !GetAtt CfnAssumeRoleLambda.Arn
@@ -20,7 +20,7 @@ Resources:
       CfnParameters:
         Tag: Tokyo
   DevStackStockholm:
-    Type: Custom::CloudFormationStackAssumeRole
+    Type: Custom::CfnStackMaker
     Version: 1.0
     Properties:
       ServiceToken: !GetAtt CfnAssumeRoleLambda.Arn
