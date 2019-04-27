@@ -1,0 +1,17 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Demo stack, creates one SSM parameter.
+Parameters:
+  ParamValue:
+    Type: String
+    Description: The value to store in the SSM parameter.
+Resources:
+  DemoParameter:
+    Type: "AWS::SSM::Parameter"
+    Properties:
+      Type: "String"
+      Value: !Ref ParamValue
+      Description: "SSM Parameter for storing user input."
+Outputs:
+  DemoParameter:
+    Description: The name of the demo parameter.
+    Value: !Ref DemoParameter
