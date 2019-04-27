@@ -16,7 +16,7 @@ Metadata:
 Parameters:
   TemplateURL:
     Type: String
-    Description: Template URL of the CloudFormation stack you want to deploy; e.g., https://s3.amazonaws.com/aws-quickstart/quickstart-examples/samples/iot-button-deploy-cloudformation/demo-stack.yaml.
+    Description: URL of the CloudFormation template you want to deploy; e.g., https://s3.amazonaws.com/aws-quickstart/quickstart-examples/samples/iot-button-deploy-cloudformation/demo-stack.yaml.
   ParamsFile:
     Type: String
     Description: S3 uri of the parameters file stored in your S3 bucket; e.g., s3://my-bucket/demo-params.json.
