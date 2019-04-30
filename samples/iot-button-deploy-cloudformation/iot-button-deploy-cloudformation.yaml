@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Deploys an AWS Lambda function that will deploy an input AWS CloudFormation template with a provided parameter file. This lambda function can be used as an action for the AWS IoT button to deploy CloudFormation templates.
+Description: Deploys an AWS Lambda function that will deploy an input AWS CloudFormation template with a provided parameter file. This Lambda function can be used as an action for the AWS IoT Button to deploy AWS CloudFormation templates.
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -19,7 +19,7 @@ Parameters:
     Description: URL of the CloudFormation template you want to deploy; e.g., https://s3.amazonaws.com/aws-quickstart/quickstart-examples/samples/iot-button-deploy-cloudformation/demo-stack.yaml.
   ParamsFile:
     Type: String
-    Description: S3 uri of the parameters file stored in your S3 bucket; e.g., s3://my-bucket/demo-params.json.
+    Description: S3 URI of the parameters file stored in your S3 bucket; e.g., s3://my-bucket/demo-params.json.
 Resources:
   IoTButtonLambdaExecutionRole:
     Type: "AWS::IAM::Role"
