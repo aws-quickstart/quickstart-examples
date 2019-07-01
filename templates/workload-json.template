@@ -6,7 +6,7 @@
             "ParameterGroups": [
                 {
                     "Label": {
-                        "default": "Network Configuration"
+                        "default": "Network configuration"
                     },
                     "Parameters": [
                         "VPCID",
@@ -18,7 +18,7 @@
                 },
                 {
                     "Label": {
-                        "default": "Amazon EC2 Configuration"
+                        "default": "Amazon EC2 configuration"
                     },
                     "Parameters": [
                         "KeyPairName",
@@ -28,7 +28,7 @@
                 },
                 {
                     "Label": {
-                        "default": "Workload Nodes Configuration"
+                        "default": "Workload nodes configuration"
                     },
                     "Parameters": [
                         "WorkloadNodesMinSize",
@@ -39,7 +39,7 @@
                 },
                 {
                     "Label": {
-                        "default": "Workload Storage Configuration"
+                        "default": "Workload storage configuration"
                     },
                     "Parameters": [
                         "S3BucketName"
@@ -47,7 +47,7 @@
                 },
                 {
                     "Label": {
-                        "default": "AWS Quick Start Configuration"
+                        "default": "AWS Quick Start configuration"
                     },
                     "Parameters": [
                         "QSS3BucketName",
@@ -57,56 +57,56 @@
             ],
             "ParameterLabels": {
                 "BastionSecurityGroupID": {
-                    "default": "Bastion Security Group ID"
+                    "default": "Bastion security group ID"
                 },
                 "KeyPairName": {
-                    "default": "SSH Key Name"
+                    "default": "SSH key name"
                 },
                 "OperatorEmail": {
-                    "default": "Operator Email"
+                    "default": "Operator email"
                 },
                 "PrivateSubnet1ID": {
-                    "default": "Private Subnet 1 ID"
+                    "default": "Private subnet 1 ID"
                 },
                 "PrivateSubnet2ID": {
-                    "default": "Private Subnet 2 ID"
+                    "default": "Private subnet 2 ID"
                 },
                 "PublicSubnet1ID": {
-                    "default": "Public Subnet 1 ID"
+                    "default": "Public subnet 1 ID"
                 },
                 "PublicSubnet2ID": {
-                    "default": "Public Subnet 2 ID"
+                    "default": "Public subnet 2 ID"
                 },
                 "QSS3BucketName": {
-                    "default": "Quick Start S3 Bucket Name"
+                    "default": "Quick Start S3 bucket name"
                 },
                 "QSS3KeyPrefix": {
-                    "default": "Quick Start S3 Key Prefix"
+                    "default": "Quick Start S3 key prefix"
                 },
                 "S3BucketName": {
-                    "default": "S3 Bucket Name"
+                    "default": "S3 bucket name"
                 },
                 "VPCID": {
                     "default": "VPC ID"
                 },
                 "WorkloadInstanceType": {
-                    "default": "Workload Servers Instance Type"
+                    "default": "Workload servers instance type"
                 },
                 "WorkloadNodesDesiredCapacity": {
-                    "default": "Workload Nodes Desired Capacity"
+                    "default": "Workload nodes desired capacity"
                 },
                 "WorkloadNodesMaxSize": {
-                    "default": "Workload Nodes Max Size"
+                    "default": "Workload nodes max size"
                 },
                 "WorkloadNodesMinSize": {
-                    "default": "Workload Nodes Min Size"
+                    "default": "Workload nodes min size"
                 }
             }
         }
     },
     "Parameters": {
         "BastionSecurityGroupID": {
-            "Description": "ID of the bastion host security group to enable SSH connections (e.g., sg-7f16e910)",
+            "Description": "ID of the bastion host security group to enable SSH connections (e.g., sg-7f16e910).",
             "Type": "AWS::EC2::SecurityGroup::Id"
         },
         "KeyPairName": {
@@ -116,23 +116,23 @@
         "OperatorEmail": {
             "AllowedPattern": "([a-zA-Z0-9_\\-\\.]+)@((\\[[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.)|(([a-zA-Z0-9\\-]+\\.)+))([a-zA-Z]{2,4}|[0-9]{1,3})(\\]?)",
             "ConstraintDescription": "Must be a valid email address.",
-            "Description": "Email address that notifications of any scaling operations will be sent to",
+            "Description": "Email address that notifications of any scaling operations will be sent to.",
             "Type": "String"
         },
         "PrivateSubnet1ID": {
-            "Description": "ID of private subnet 1 in Availability Zone 1 for the Workload (e.g., subnet-a0246dcd)",
+            "Description": "ID of private subnet 1 in Availability Zone 1 for the workload (e.g., subnet-a0246dcd).",
             "Type": "AWS::EC2::Subnet::Id"
         },
         "PrivateSubnet2ID": {
-            "Description": "ID of private subnet 2 in Availability Zone 2 for the Workload (e.g., subnet-b1f432cd)",
+            "Description": "ID of private subnet 2 in Availability Zone 2 for the workload (e.g., subnet-b1f432cd).",
             "Type": "AWS::EC2::Subnet::Id"
         },
         "PublicSubnet1ID": {
-            "Description": "ID of public subnet 1 in Availability Zone 1 for the ELB load balancer (e.g., subnet-9bc642ac)",
+            "Description": "ID of public subnet 1 in Availability Zone 1 for the ELB load balancer (e.g., subnet-9bc642ac).",
             "Type": "AWS::EC2::Subnet::Id"
         },
         "PublicSubnet2ID": {
-            "Description": "ID of public subnet 2 in Availability Zone 2 for the ELB load balancer (e.g., subnet-e3246d8e)",
+            "Description": "ID of public subnet 2 in Availability Zone 2 for the ELB load balancer (e.g., subnet-e3246d8e).",
             "Type": "AWS::EC2::Subnet::Id"
         },
         "QSS3BucketName": {
@@ -156,7 +156,7 @@
             "Type": "String"
         },
         "VPCID": {
-            "Description": "ID of your existing VPC for deployment",
+            "Description": "ID of your existing VPC for deployment.",
             "Type": "AWS::EC2::VPC::Id"
         },
         "WorkloadInstanceType": {
@@ -186,22 +186,22 @@
             ],
             "ConstraintDescription": "Must contain valid instance type",
             "Default": "m4.xlarge",
-            "Description": "Type of EC2 instance for the Workload instances",
+            "Description": "Type of EC2 instance for the workload instances.",
             "Type": "String"
         },
         "WorkloadNodesDesiredCapacity": {
             "Default": "2",
-            "Description": "The desired capacity for the Workload nodes Auto Scaling group",
+            "Description": "Desired capacity for the Workload nodes Auto Scaling group.",
             "Type": "String"
         },
         "WorkloadNodesMaxSize": {
             "Default": "4",
-            "Description": "The maximum size of the Auto Scaling group",
+            "Description": "Maximum size of the Auto Scaling group.",
             "Type": "String"
         },
         "WorkloadNodesMinSize": {
             "Default": "2",
-            "Description": "The minimum size of the Auto Scaling group",
+            "Description": "Minimum size of the Auto Scaling group.",
             "Type": "String"
         }
     },
