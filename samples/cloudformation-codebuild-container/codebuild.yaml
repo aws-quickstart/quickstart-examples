@@ -1,0 +1,309 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Example CFN Template which creates and ECR Repository and uses CodeBuild to create a container image and commit it to the ECR respository
+Parameters:
+  S3BucketName:
+    AllowedPattern: "^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$"
+    ConstraintDescription: S3 bucket name can include numbers, lowercase
+      letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
+      (-).
+    Default: gargana-blog-demo
+    Description: S3 bucket name for the Lambda and CodeBuild assets
+    Type: String
+  LambdaCodePath:
+    Default: "lambda_codebuild.zip"
+    Type: String
+  CodeBuildBundle:
+    Default: "Dockerfile.zip"
+    Type: String
+Resources:
+  ECRRepository:
+    Type: AWS::ECR::Repository
+  CopyZipsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Path: /
+      Policies:
+        - PolicyName: lambda-copier
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource:
+                  - !Sub 'arn:aws:s3:::${S3BucketName}/*'
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource:
+                  - !Sub 'arn:aws:s3:::${LambdaZipsBucket}/*'
+  CopyZipsFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Copies objects from a source S3 bucket to a destination
+      Handler: index.handler
+      Runtime: python2.7
+      Role: !GetAtt 'CopyZipsRole.Arn'
+      Timeout: 240
+      Code:
+        ZipFile: !Join
+          - "\n"
+          - - import json
+            - import logging
+            - import threading
+            - import boto3
+            - import cfnresponse
+            - ''
+            - ''
+            - 'def copy_objects(source_bucket, dest_bucket, prefix, objects):'
+            - '    s3 = boto3.client(''s3'')'
+            - '    for o in objects:'
+            - '        key = prefix + o'
+            - '        copy_source = {'
+            - '            ''Bucket'': source_bucket,'
+            - '            ''Key'': key'
+            - '        }'
+            - '        print(''copy_source: %s'' % copy_source)'
+            - '        print(''dest_bucket = %s''%dest_bucket)'
+            - '        print(''key = %s'' %key)'
+            - '        s3.copy_object(CopySource=copy_source, Bucket=dest_bucket,
+              Key=key)'
+            - ''
+            - ''
+            - 'def delete_objects(bucket, prefix, objects):'
+            - '    s3 = boto3.client(''s3'')'
+            - '    objects = {''Objects'': [{''Key'': prefix + o} for o in objects]}'
+            - '    s3.delete_objects(Bucket=bucket, Delete=objects)'
+            - ''
+            - ''
+            - 'def timeout(event, context):'
+            - '    logging.error(''Execution is about to time out, sending failure
+              response to CloudFormation'')'
+            - '    cfnresponse.send(event, context, cfnresponse.FAILED, {}, None)'
+            - ''
+            - ''
+            - 'def handler(event, context):'
+            - '    # make sure we send a failure to CloudFormation if the function
+              is going to timeout'
+            - '    timer = threading.Timer((context.get_remaining_time_in_millis()
+              / 1000.00) - 0.5, timeout, args=[event, context])'
+            - '    timer.start()'
+            - ''
+            - '    print(''Received event: %s'' % json.dumps(event))'
+            - '    status = cfnresponse.SUCCESS'
+            - '    try:'
+            - '        source_bucket = event[''ResourceProperties''][''SourceBucket'']'
+            - '        dest_bucket = event[''ResourceProperties''][''DestBucket'']'
+            - '        prefix = event[''ResourceProperties''][''Prefix'']'
+            - '        objects = event[''ResourceProperties''][''Objects'']'
+            - '        if event[''RequestType''] == ''Delete'':'
+            - '            delete_objects(dest_bucket, prefix, objects)'
+            - '        else:'
+            - '            copy_objects(source_bucket, dest_bucket, prefix, objects)'
+            - '    except Exception as e:'
+            - '        logging.error(''Exception: %s'' % e, exc_info=True)'
+            - '        status = cfnresponse.FAILED'
+            - '    finally:'
+            - '        timer.cancel()'
+            - '        cfnresponse.send(event, context, status, {}, None)'
+            - ''
+  LambdaZipsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      Tags: []
+  CopyZips:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken: !GetAtt 'CopyZipsFunction.Arn'
+      DestBucket: !Ref 'LambdaZipsBucket'
+      SourceBucket: !Ref 'S3BucketName'
+      Prefix: 'demo/'
+      Objects:
+        - lambda_codebuild.zip
+        - Dockerfile.zip
+  CodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+      Policies:
+        - PolicyName: ecs-service
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Resource:
+                  - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/*'
+                  - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/*:*'
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+              - Effect: Allow
+                Resource:
+                  - !Sub 'arn:aws:s3:::${LambdaZipsBucket}/demo/${CodeBuildBundle}'
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+              - Effect: Allow
+                Resource:
+                  Fn::Join:
+                    - ''
+                    - - !Sub 'arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/'
+                      - !Ref ECRRepository
+                Action:
+                  - ecr:DescribeImages
+                  - ecr:ListImages
+                  - ecr:PutImage
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:BatchGetImage
+                  - ecr:CompleteLayerUpload
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:GetRepositoryPolicy
+                  - ecr:InitiateLayerUpload
+                  - ecr:UploadLayerPart
+              - Effect: Allow
+                Resource: "*"
+                Action:
+                  - ecr:GetAuthorizationToken
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    DependsOn: CopyZips
+    Properties:
+      Description: Builds a docker container and pushes container images to ECR
+      ServiceRole: !GetAtt 'CodeBuildRole.Arn'
+      Artifacts:
+        Type: no_artifacts
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: "aws/codebuild/docker:17.09.0"
+        PrivilegedMode: True
+        EnvironmentVariables:
+          # FIXME: want to determine AWS ACCOUNT automagically from inside the build
+          - Name: AWS_ACCOUNT_ID
+            Value: !Sub '${AWS::AccountId}'
+          - Name: IMAGE_REPO_NAME
+            Value: !Ref ECRRepository
+          - Name: IMAGE_TAG
+            Value: 'latest'  
+          - Name: url_path
+            Value: 'placeholder'
+          - Name: url_query
+            Value: 'placeholder'
+          - Name: cfn_signal_url
+            Value: 'placeholder'
+          - Name: cfn_stack_id
+            Value: 'placeholder'
+          - Name: cfn_logical_resource_id
+            Value: 'placeholder'
+          - Name: cfn_request_id
+            Value: 'placeholder'
+      Source:
+        Location: !Sub '${LambdaZipsBucket}/demo/${CodeBuildBundle}'
+        Type: S3
+        BuildSpec: |
+          version: 0.2
+          phases:
+            install:
+              commands:
+                 - curl -o aws-cfn-bootstrap-latest.tar.gz https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz
+                 - mkdir -p /opt/aws/
+                 - tar -xzvf aws-cfn-bootstrap-latest.tar.gz --strip-components=1 -C /opt/aws/
+                 - export PATH=/opt/aws/bin/:$PATH
+            pre_build:
+              commands:
+                - echo Logging in to Amazon ECR...
+                - $(aws ecr get-login --no-include-email --region $AWS_DEFAULT_REGION)
+            build:
+              commands:
+                - echo Build started on `date`
+                - echo Building the Docker image...
+                - docker build -t $IMAGE_REPO_NAME:$IMAGE_TAG .
+                # FIXME: This is not working the value is an empty string (don't want the extra param)
+                - export ACCOUNT_ID=$(echo ${CODEBUILD_BUILD_ARN} | awk -F':' '{print $4}')
+                - echo $ACCOUNT_ID
+                - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
+            post_build:
+              commands:
+                - echo Build completed on `date`
+                - echo Pushing the Docker image...
+                - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
+                - echo Signal back if we have gotten this far
+                - echo url_path - $url_path
+                - echo url_query - $url_query
+                - export UUID=1233244324
+                - |
+                  if [ $CODEBUILD_BUILD_SUCCEEDING -eq 1 ]
+                  then
+                    curl -X PUT -H 'Content-Type:' -d "{\"StackId\":\"$cfn_stack_id\", \"RequestId\":\"$cfn_request_id\", \"LogicalResourceId\":\"$cfn_logical_resource_id\", \"PhysicalResourceId\":\"$UUID\", \"Status\":\"SUCCESS\"}" "$cfn_signal_url"
+                  else
+                    curl -X PUT -H 'Content-Type:' -d "{\"StackId\":\"$cfn_stack_id\", \"RequestId\":\"$cfn_request_id\", \"LogicalResourceId\":\"$cfn_logical_resource_id\", \"PhysicalResourceId\":\"$UUID\", \"Status\":\"FAILED\"}" "$cfn_signal_url"
+                  fi
+      TimeoutInMinutes: 60
+  CodeBuildRun:
+    Type: Custom::CodeBuildRun
+    Properties:
+      ServiceToken: !GetAtt CodeBuildLambda.Arn
+      BuildProjectName: !Ref CodeBuildProject
+      # cfn_signal_url: is part of the event by default hence missing here 
+      # cfn_stack_id: is part of the event by default 
+      # cfn_request_id: also part of the event
+      # cfn_logical_resource_id: also part of the event
+      # Lambda function passes the above into the build project when invoking StartBuild
+  CodeBuildLambda:
+    Type: AWS::Lambda::Function
+    DependsOn: [ CopyZips ]
+    Properties:
+      Code:
+        S3Bucket: !Ref LambdaZipsBucket
+        S3Key: !Sub "demo/${LambdaCodePath}"
+      Handler: "lambda_codebuild.lambda_handler"
+      Runtime: python2.7
+      Timeout: 300
+      Role: !GetAtt CodeBuildLambdaExecutionRole.Arn
+  CodeBuildLambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      Policies:
+      - PolicyName: root
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - codebuild:StartBuild
+            Resource: !GetAtt CodeBuildProject.Arn
+          - Effect: Allow
+            Action:
+            - logs:*
+            Resource: arn:aws:logs:*:*:*
+          - Effect: Allow
+            Action:
+            - s3:GetObject
+            - s3:PutObject
+            Resource: arn:aws:s3:::*  
