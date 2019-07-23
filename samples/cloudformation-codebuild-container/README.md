@@ -1,9 +1,6 @@
-## AWS Cloudformation Codebuild Custom Resource
+## Build container images using AWS CloudFormation
 
-It is a demonstration of how to: Create a "Custom Lambda backed resource to run a CodeBuild project, creating a Docker container image and upload it to ECR" using Cloudformation.
+In this example I demonstrate using Custom Lambda-backed resource to run a CodeBuild project, creating a Docker container image and uploading it to Amazon Elastic Container Regsitry, using Cloudformation.
 
 ![Overview](./overview.png)
 
-## License Summary
-
-This sample code is made available under a modified MIT license. See the LICENSE file.
