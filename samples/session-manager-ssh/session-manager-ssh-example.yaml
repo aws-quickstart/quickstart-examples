@@ -91,7 +91,7 @@ Resources:
     Type: AWS::EC2::Instance
     Properties:
       ImageId: !Ref LatestAmiId
-      InstanceType: "t2.small"
+      InstanceType: "t3.micro"
       IamInstanceProfile: !Ref EC2InstanceProfile
       KeyName: !Ref KeyPairName
       SubnetId:
