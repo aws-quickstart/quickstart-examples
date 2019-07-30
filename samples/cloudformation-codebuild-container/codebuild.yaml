@@ -260,6 +260,7 @@ Resources:
     Properties:
       ServiceToken: !GetAtt CodeBuildLambda.Arn
       BuildProjectName: !Ref CodeBuildProject
+      ECRRepository: !Ref ECRRepository
       # cfn_signal_url: is part of the event by default hence missing here 
       # cfn_stack_id: is part of the event by default 
       # cfn_request_id: also part of the event

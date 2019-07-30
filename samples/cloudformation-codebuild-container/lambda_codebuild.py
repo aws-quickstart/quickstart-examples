@@ -33,6 +33,7 @@ def lambda_handler(event, context):
             # DELETE (Let CFN delete the artifacts etc as per normal)
             # signal success to CFN
             print "Delete event nothing to do just signal back"
+            cleanup_images(event)
             response['PhysicalResourceId'] = "1233244324"
             return send_response(event, response)
         else:
@@ -45,6 +46,42 @@ def lambda_handler(event, context):
         return send_response(event, response, "FAILED",
                              "Unhandled exception, failing gracefully")
 
+
+def cleanup_images(event):
+    """
+    loop over and delete images in each repo
+    """
+    properties = event['ResourceProperties']
+    for repository in ['ECRRepository']:
+       print("Cleaning Up: " + repository)
+       print("Trying to cleanup: " + properties[repository])
+       cleanup_images_repo(properties[repository])
+
+
+def cleanup_images_repo(repository):
+    """
+    Delete Container images
+    """
+    ecr_client = boto3.client('ecr')
+    response = ecr_client.describe_images(
+        registryId=globals()['account_id'],
+        repositoryName=repository
+    )
+    imageIds = []
+    for imageDetail in response['imageDetails']:
+        imageIds.append(
+                {
+                    'imageDigest': imageDetail['imageDigest'],
+                }
+        )
+        
+    if len(imageIds):
+        # delete images
+        response = ecr_client.batch_delete_image(
+            registryId=globals()['account_id'],
+            repositoryName=repository,
+            imageIds=imageIds
+        )
 
 
 def execute_build(event):
