@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: This template demonstrates connecting to instances in private subnets using Session Manager.
+Description: This template sets up a VPC and ec2 instance for the purposes of demonstrating connecting to instances in private subnets using Session Manager. (qs-1pqnhbcg8)
 Parameters:
   LatestAmiId:
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
