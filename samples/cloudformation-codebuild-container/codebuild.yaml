@@ -6,7 +6,7 @@ Parameters:
     ConstraintDescription: S3 bucket name can include numbers, lowercase
       letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
       (-).
-    Default: gargana-blog-demo
+    Default: aws-quickstart
     Description: S3 bucket name for the Lambda and CodeBuild assets
     Type: String
   LambdaCodePath:
@@ -127,7 +127,7 @@ Resources:
       ServiceToken: !GetAtt 'CopyZipsFunction.Arn'
       DestBucket: !Ref 'LambdaZipsBucket'
       SourceBucket: !Ref 'S3BucketName'
-      Prefix: 'demo/'
+      Prefix: 'quickstart-examples/samples/cloudformation-codebuild-container/'
       Objects:
         - lambda_codebuild.zip
         - Dockerfile.zip
@@ -155,7 +155,7 @@ Resources:
                   - logs:PutLogEvents
               - Effect: Allow
                 Resource:
-                  - !Sub 'arn:aws:s3:::${LambdaZipsBucket}/demo/${CodeBuildBundle}'
+                  - !Sub 'arn:aws:s3:::${LambdaZipsBucket}/quickstart-examples/samples/cloudformation-codebuild-container/${CodeBuildBundle}'
                 Action:
                   - s3:GetObject
                   - s3:GetObjectVersion
@@ -214,7 +214,7 @@ Resources:
           - Name: cfn_request_id
             Value: 'placeholder'
       Source:
-        Location: !Sub '${LambdaZipsBucket}/demo/${CodeBuildBundle}'
+        Location: !Sub '${LambdaZipsBucket}/quickstart-examples/samples/cloudformation-codebuild-container/${CodeBuildBundle}'
         Type: S3
         BuildSpec: |
           version: 0.2
@@ -271,7 +271,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: !Ref LambdaZipsBucket
-        S3Key: !Sub "demo/${LambdaCodePath}"
+        S3Key: !Sub "quickstart-examples/samples/cloudformation-codebuild-container/${LambdaCodePath}"
       Handler: "lambda_codebuild.lambda_handler"
       Runtime: python2.7
       Timeout: 300
