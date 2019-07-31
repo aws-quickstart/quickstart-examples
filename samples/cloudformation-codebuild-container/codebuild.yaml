@@ -248,12 +248,21 @@ Resources:
                 - echo url_query - $url_query
                 - export UUID=1233244324
                 - |
-                  if [ $CODEBUILD_BUILD_SUCCEEDING -eq 1 ]
+                  STATUS='SUCCESS'
+                  if [ $CODEBUILD_BUILD_SUCCEEDING -ne 1 ] # Test if the build is failing
                   then
-                    curl -X PUT -H 'Content-Type:' -d "{\"StackId\":\"$cfn_stack_id\", \"RequestId\":\"$cfn_request_id\", \"LogicalResourceId\":\"$cfn_logical_resource_id\", \"PhysicalResourceId\":\"$UUID\", \"Status\":\"SUCCESS\"}" "$cfn_signal_url"
-                  else
-                    curl -X PUT -H 'Content-Type:' -d "{\"StackId\":\"$cfn_stack_id\", \"RequestId\":\"$cfn_request_id\", \"LogicalResourceId\":\"$cfn_logical_resource_id\", \"PhysicalResourceId\":\"$UUID\", \"Status\":\"FAILED\"}" "$cfn_signal_url"
+                    STATUS='FAILED'
                   fi
+                  cat <<EOF > /tmp/payload.json
+                  {
+                    "StackId": "$cfn_stack_id",
+                    "RequestId": "$cfn_request_id",
+                    "LogicalResourceId":"$cfn_logical_resource_id",
+                    "PhysicalResourceId": "$UUID",
+                    "Status": "$STATUS"
+                  }
+                  EOF
+                  curl -vv -i -X PUT -H 'Content-Type:' -d "@/tmp/payload.json" "$cfn_signal_url"
       TimeoutInMinutes: 60
   CodeBuildRun:
     Type: Custom::CodeBuildRun
@@ -261,7 +270,7 @@ Resources:
       ServiceToken: !GetAtt CodeBuildLambda.Arn
       BuildProjectName: !Ref CodeBuildProject
       ECRRepository: !Ref ECRRepository
-      # cfn_signal_url: is part of the event by default hence missing here 
+      # cfn_signal_url: is part of the event by default hence missing here
       # cfn_stack_id: is part of the event by default 
       # cfn_request_id: also part of the event
       # cfn_logical_resource_id: also part of the event
@@ -297,14 +306,22 @@ Resources:
           Statement:
           - Effect: Allow
             Action:
-            - codebuild:StartBuild
+              - codebuild:StartBuild
             Resource: !GetAtt CodeBuildProject.Arn
           - Effect: Allow
             Action:
-            - logs:*
+              - logs:*
             Resource: arn:aws:logs:*:*:*
           - Effect: Allow
+            Resource:
+              - !Sub 'arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${ECRRepository}'
             Action:
-            - s3:GetObject
-            - s3:PutObject
+              - ecr:DescribeImages
+              - ecr:ListImages
+              - ecr:BatchGetImage
+              - ecr:BatchDeleteImage
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:PutObject
             Resource: arn:aws:s3:::*  
