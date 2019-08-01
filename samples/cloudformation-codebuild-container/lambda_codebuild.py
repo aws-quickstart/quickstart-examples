@@ -3,48 +3,90 @@ import httplib
 import urlparse
 import json
 import boto3
+import traceback
 
 
 def lambda_handler(event, context):
     """Main Lambda Handling function."""
+    account_id = context.invoked_function_arn.split(":")[4]
+
     try:
         # Log the received event
-        print "Received event: " + json.dumps(event, indent=2)
+        print("Received event: " + json.dumps(event, indent=2))
+
         # Setup base response
         response = get_response_dict(event)
 
         # CREATE UPDATE (want to avoid rebuilds unless something changed)
         if event['RequestType'] in ("Create", "Update"):
             try:
-                print "Kicking off Build"
+                print("Kicking off Build")
                 execute_build(event)
-            except Exception, exce:
-                print "ERROR: Build threw exception" + exce.message
-                print exce
+            except Exception as build_exce:
+                print("ERROR: Build threw exception")
+                print(repr(build_exce))
                 # Signal back that we failed
                 return send_response(event, get_response_dict(event),
-                                     "FAILED", exce.message)
+                                     "FAILED", repr(build_exce))
             else:
-                # We want codebuild to send the signal
-                print "Build Kicked off ok CodeBuild should signal back"
+                # CodeBuild will send the signal
+                print("Build Kicked off ok CodeBuild should signal back")
                 return
         elif event['RequestType'] == "Delete":
             # TODO: Remove the created images in the Repositories
-            # DELETE (Let CFN delete the artifacts etc as per normal)
-            # signal success to CFN
-            print "Delete event nothing to do just signal back"
+            print("Delete event remove container images")
             response['PhysicalResourceId'] = "1233244324"
+            try:
+                resources = event['ResourceProperties']
+                repository = resources['ECRRepository']
+                cleanup_images_repo(repository, account_id)
+            except Exception as cleanup_exception:
+                # signal failure to CFN
+                print(json.dumps(event, indent=2))
+                traceback.print_stack()
+                print("---------")
+                traceback.print_exc()
+                print(repr(cleanup_exception))
+                return send_response(event, response, "FAILED",
+                                     "Cleanup of Container image failed." + repr(cleanup_exception))
+            # signal success to CFN
             return send_response(event, response)
         else:
             # Invalid RequestType
-            print "ERROR: Invalid request type send error signal to cfn"
-            return send_response(event, response, "FAILED",
-                                 "Invalid RequestType: Create, Update, Delete")
-    except Exception, unhandled:
+            print("ERROR: Invalid request type send error signal to cfn")
+            print("ERROR: Expected - Create, Update, Delete")
+    except Exception as unhandled:
         response = get_response_dict(event)
         return send_response(event, response, "FAILED",
-                             "Unhandled exception, failing gracefully")
+                             "Unhandled exception, failing gracefully: " + str(unhandled))
 
+
+def cleanup_images_repo(repository, account_id):
+    """
+    Delete Container images
+    """
+    ecr_client = boto3.client('ecr')
+
+    print("Repo:" + repository + " AccountID:" + account_id)
+    response = ecr_client.describe_images(
+        registryId=account_id,
+        repositoryName=repository
+    )
+    image_ids = []
+    for imageDetail in response['imageDetails']:
+        image_ids.append(
+                {
+                    'imageDigest': imageDetail['imageDigest'],
+                }
+        )
+
+    if len(image_ids):
+        # delete images
+        response = ecr_client.batch_delete_image(
+            registryId=account_id,
+            repositoryName=repository,
+            imageIds=image_ids
+        )
 
 
 def execute_build(event):
@@ -92,6 +134,6 @@ def send_response(event, response, status=None, reason=None):
         body = json.dumps(response)
         https = httplib.HTTPSConnection(url.hostname)
         https.request('PUT', url.path+'?'+url.query, body)
-        print "Sent CFN Response"
+        print("Sent CFN Response")
 
     return response
