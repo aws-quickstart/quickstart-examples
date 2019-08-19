@@ -75,19 +75,33 @@ Resources:
                   Parameters=template_params,
                   Capabilities=capabilities)
               except Exception as e:
-                print(str(e))
+                error_msg = str(e)
+                print(error_msg)
+                stackdata = {"error": error_msg}
               return stackdata  
-            
+
+            def stack_success(stackdata):
+              if 'error' in stackdata:
+                return False
+              else:
+                return True
+
             def handler(event, context):
               print("Received event:")
               stack_result=launch_stack()
               print(stack_result)
+
+              if stack_success(stack_result):
+                resp_txt = "Your stack has been launched. Please visit the AWS Console to track its progress"
+              else:
+                resp_txt = "Your stack failed to launch. Please visit the AWS Console to investigate further"
+
               json_resp = {
                 "version": "1.0",
                 "response": {
                   "outputSpeech": {
                     "type": "PlainText",
-                    "text": "Your stack has been launched. Please visit the AWS Console to track its progress"
+                    "text": resp_txt
                   },
                   "shouldEndSession": "true"
                 }
