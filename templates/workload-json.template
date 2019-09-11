@@ -252,46 +252,46 @@
                 "AMZNLINUXHVM": "amzn-ami-hvm-2018.03.0.20190611-x86_64-gp2"
             },
             "ap-northeast-1": {
-                "AMZNLINUXHVM": "ami-04b2d1589ab1d972c"
+                "AMZNLINUXHVM": "ami-0ab3e16f9c414dee7"
             },
             "ap-northeast-2": {
-                "AMZNLINUXHVM": "ami-0be3e6f84d3b968cd"
+                "AMZNLINUXHVM": "ami-0e1e385b0a934254a"
             },
             "ap-south-1": {
-                "AMZNLINUXHVM": "ami-0b99c7725b9484f9e"
+                "AMZNLINUXHVM": "ami-02913db388613c3e1"
             },
             "ap-southeast-1": {
-                "AMZNLINUXHVM": "ami-0fb6b6f9e81056553"
+                "AMZNLINUXHVM": "ami-05c859630889c79c8"
             },
             "ap-southeast-2": {
-                "AMZNLINUXHVM": "ami-075caa3491def750b"
+                "AMZNLINUXHVM": "ami-07cc15c3ba6f8e287"
             },
             "ca-central-1": {
-                "AMZNLINUXHVM": "ami-0a67d15f2858e33cb"
+                "AMZNLINUXHVM": "ami-04070f04f450607dc"
             },
             "eu-central-1": {
-                "AMZNLINUXHVM": "ami-026d3b3672c6e7b66"
+                "AMZNLINUXHVM": "ami-010fae13a16763bb4"
             },
             "eu-west-1": {
-                "AMZNLINUXHVM": "ami-0862aabda3fb488b5"
+                "AMZNLINUXHVM": "ami-028188d9b49b32a80"
             },
             "eu-west-2": {
-                "AMZNLINUXHVM": "ami-0bdfa1adc3878cd23"
+                "AMZNLINUXHVM": "ami-04de2b60dd25fbb2e"
             },
             "sa-east-1": {
-                "AMZNLINUXHVM": "ami-0bb96001cf2299257"
+                "AMZNLINUXHVM": "ami-0e2c2c29d8017dd99"
             },
             "us-east-1": {
-                "AMZNLINUXHVM": "ami-035b3c7efe6d061d5"
+                "AMZNLINUXHVM": "ami-00eb20669e0990cb4"
             },
             "us-east-2": {
-                "AMZNLINUXHVM": "ami-02f706d959cedf892"
+                "AMZNLINUXHVM": "ami-0c64dd618a49aeee8"
             },
             "us-west-1": {
-                "AMZNLINUXHVM": "ami-0fcdcdb074d2bac5f"
+                "AMZNLINUXHVM": "ami-0bce08e823ed38bdd"
             },
             "us-west-2": {
-                "AMZNLINUXHVM": "ami-0f2176987ee50226e"
+                "AMZNLINUXHVM": "ami-08d489468314a58df"
             }
         }
     },
