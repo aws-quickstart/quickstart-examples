@@ -1,0 +1,132 @@
+Resources:
+  MyEC2AccessRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ec2.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+  CWRolePolicies:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: CloudWatchLogsFullAccess
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action: "*"
+          Resource: "*"
+      Roles:
+      - !Ref MyEC2AccessRole
+  SMRolePolicies:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: SecretsManagerReadWrite
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action: "*"
+          Resource: "*"
+      Roles:
+      - !Ref MyEC2AccessRole
+  MyEC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: "/"
+      Roles:
+      - !Ref MyEC2AccessRole
+  MyEC2Instance: 
+    Type: AWS::EC2::Instance
+    Properties: 
+      ImageId: "ami-057549bd0bba43bc1"
+      Tags: 
+        - 
+          Key: "Name"
+          Value: "MyWindowsInstance"
+      IamInstanceProfile: 
+        !Ref MyEC2InstanceProfile
+      UserData: 
+        !Base64 |
+          <powershell>
+            function Write-LogsEntry
+                {
+                  [CmdletBinding()]
+                  Param(
+                    [Parameter(Mandatory=$true)]
+                    [string] $LogGroupName,
+                    [Parameter(Mandatory=$true)]
+                    [string] $LogStreamName,
+                    [Parameter(Mandatory=$true)]
+                    [string] $LogString
+                  )
+                
+                  #Determine if the LogGroup Exists
+                  If (-Not (Get-CWLLogGroup -LogGroupNamePrefix $LogGroupName)){
+                    New-CWLLogGroup -LogGroupName $logGroupName
+                    #Since the loggroup does not exist, we know the logstream does not exist either
+                    $CWLSParam = @{
+                      LogGroupName = $logGroupName
+                      LogStreamName = $logStreamName
+                    }
+                    New-CWLLogStream @CWLSParam
+                  }
+                  #Determine if the LogStream Exists
+                  If (-Not (Get-CWLLogStream -LogGroupName $logGroupName -LogStreamName $LogStreamName)){
+                    $CWLSParam = @{
+                      LogGroupName = $logGroupName
+                      LogStreamName = $logStreamName
+                    }
+                    New-CWLLogStream @CWLSParam 
+                  }
+                            
+                  $logEntry = New-Object -TypeName 'Amazon.CloudWatchLogs.Model.InputLogEvent'
+                  $logEntry.Message = $LogString
+                  $logEntry.Timestamp = (Get-Date).ToUniversalTime()
+                  #Get the next sequence token
+                  $SequenceToken = (Get-CWLLogStream -LogGroupName $LogGroupName -LogStreamNamePrefix $logStreamName).UploadSequenceToken
+                  
+                  #There will be no $SequenceToken when a new Stream is created to we adjust the parameters for this          
+                  if($SequenceToken){
+                    $CWLEParam = @{
+                      LogEvent      = $logEntry
+                      LogGroupName  = $logGroupName
+                      LogStreamName = $logStreamName
+                      SequenceToken = $SequenceToken
+                    }
+                    Write-CWLLogEvent @CWLEParam 
+                  }else{
+                    $CWLEParam = @{
+                      LogEvent      = $logEntry
+                      LogGroupName  = $logGroupName
+                      LogStreamName = $logStreamName
+                    }
+                    Write-CWLLogEvent @CWLEParam 
+                  }
+                }
+
+            $logGroupName = 'MyNewWindowsInstance'
+            $logStreamName = "MyWindowsInstance" + (Get-Date (Get-Date).ToUniversalTime() -Format "MM-dd-yyyy" )
+                
+              New-LocalUser -Name (ConvertFrom-Json -InputObject (Get-SECSecretValue -SecretId LocalBuildCredenitals).SecretString).username -Password (ConvertTo-SecureString (ConvertFrom-Json -InputObject (Get-SECSecretValue -SecretId LocalBuildCredenitals).SecretString).password -AsPlainText -Force)
+
+            Write-LogsEntry -LogGroupName $LogGroupName -LogStreamName $LogStreamName -LogString 'Created local user'
+
+            Add-LocalGroupMember -Group "Administrators" -Member (ConvertFrom-Json -InputObject (Get-SECSecretValue -SecretId LocalBuildCredenitals).SecretString).username
+            Write-LogsEntry -LogGroupName $LogGroupName -LogStreamName $LogStreamName -LogString 'Added local user to Administrators Group'
+            Add-LocalGroupMember -Group "Remote Management Users" -Member (ConvertFrom-Json -InputObject (Get-SECSecretValue -SecretId LocalBuildCredenitals).SecretString).username
+            Write-LogsEntry -LogGroupName $LogGroupName -LogStreamName $LogStreamName -LogString 'Added local user to Remote Management Users Group'
+
+            Install-WindowsFeature web-mgmt-console
+            Write-LogsEntry -LogGroupName $LogGroupName -LogStreamName $LogStreamName -LogString 'Installed Windows Feature Web Management Console'
+            Enable-PSRemoting -Force
+            Write-LogsEntry -LogGroupName $LogGroupName -LogStreamName $LogStreamName -LogString 'Enabled Powersell remoting'
+
+            Write-LogsEntry -LogGroupName $LogGroupName -LogStreamName $LogStreamName -LogString 'UserData processing complete'
+          </powershell>
