@@ -52,6 +52,8 @@ Resources:
                   - !GetAtt [ RunSSMCommands, Arn ]
                   - !GetAtt [ CheckSSMCommandStatus, Arn ]
                   - !GetAtt [ IsAMICreationCompleted, Arn ]
+                  - !GetAtt [ CreateAMI, Arn ]
+                  - !GetAtt [ TerminateEC2, Arn ]
 
   LambdaRole:
     Type: AWS::IAM::Role
@@ -91,6 +93,7 @@ Resources:
               - Effect: "Allow"
                 Action:
                   - "ssm:SendCommand"
+                  - "ssm:ListCommands"
                 Resource: "*"
 
   Ec2SSMRole:
