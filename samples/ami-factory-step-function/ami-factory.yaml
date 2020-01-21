@@ -1,0 +1,588 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: AMi Factory Set up template
+
+Parameters:
+  InstanceType:
+    Type: String
+    Default: t2.small
+    Description: Instance Type
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: Subnet ID to run the EC2 instance for AMI building
+  NotificationEmail:
+    Type: String
+    Description: Email id to be notified once AMI is created
+
+Resources:
+  SNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      Subscription:
+        - Endpoint: !Ref NotificationEmail
+          Protocol: "email"
+
+  StatesExecutionRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - !Sub states.${AWS::Region}.amazonaws.com
+            Action: "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        - PolicyName: StatesExecutionPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "sns:Publish"
+                Resource: !Ref SNSTopic
+              - Effect: Allow
+                Action:
+                  - "lambda:InvokeFunction"
+                Resource:
+                  - !GetAtt [ LaunchInstance, Arn ]
+                  - !GetAtt [ CheckInstanceStatus, Arn ]
+                  - !GetAtt [ RunSSMCommands, Arn ]
+                  - !GetAtt [ CheckSSMCommandStatus, Arn ]
+                  - !GetAtt [ IsAMICreationCompleted, Arn ]
+
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Effect: Allow
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/AmazonDynamoDBReadOnlyAccess
+        - arn:aws:iam::aws:policy/AmazonEC2FullAccess
+        - arn:aws:iam::aws:policy/IAMFullAccess
+      Policies:
+        - PolicyName: "ProxyInstancePolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "ssm:PutParameter"
+                  - "ssm:GetParameter"
+                Resource:
+                  Fn::Join:
+                    - ""
+                    - - 'arn:aws:ssm:'
+                      - !Ref AWS::Region
+                      - ':'
+                      - !Ref AWS::AccountId
+                      - ':'
+                      - 'parameter/*'
+              - Effect: "Allow"
+                Action:
+                  - "ssm:SendCommand"
+                Resource: "*"
+
+  Ec2SSMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Effect: Allow
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: "ProxyInstancePolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "kms:DescribeCustomKeyStores"
+                  - "kms:ListKeys"
+                  - "kms:Decrypt"
+                  - "kms:DescribeKey"
+                  - "kms:ConnectCustomKeyStore"
+                  - "kms:ListGrants"
+                Resource: "*"
+      Path: "/"
+  AMIFactoryProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref Ec2SSMRole
+
+  LaunchInstance:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      Code:
+        ZipFile: !Sub |
+          import json
+          import boto3
+          import os
+          def lambda_handler(event, context):
+              client = boto3.client('ec2')
+              InstanceType = os.environ['InstanceType']
+              IAMARN = os.environ['IAMARN']
+              SubnetId = os.environ['SubnetId']
+              SourceImageId = event['SourceImageId']
+
+              response = client.run_instances(
+                  ImageId=SourceImageId,
+                  InstanceType=InstanceType,
+                  IamInstanceProfile={
+                      'Arn': IAMARN
+                  },
+                  MinCount=1,
+                  MaxCount=1,
+                  SubnetId=SubnetId,
+              )
+              event['InstanceId'] =  response['Instances'][0]['InstanceId']
+              return event
+
+      Description: "Creates an EC2 instance based on AMI passed with SSM role attached"
+      Environment:
+        Variables:
+          SubnetId: !Ref SubnetId
+          InstanceType: !Ref InstanceType
+          IAMARN: !GetAtt AMIFactoryProfile.Arn
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaRole.Arn
+      Runtime: python3.6
+      Timeout: 300
+
+  CheckInstanceStatus:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      Code:
+        ZipFile: !Sub |
+          import sys, os
+          import boto3
+          import json
+
+          client = boto3.client('ec2')
+
+          def lambda_handler(event, context):
+              print(json.dumps(event,indent=4))
+              instance_id=event['InstanceId']
+              current_status=checkInstanceStatus(instance_id)
+              if current_status == 'running':
+                  event['HasInstanceStarted'] = 'YES'
+              else:
+                  event['HasInstanceStarted'] = 'NO'
+              return event
+
+          def checkInstanceStatus(instance_id):
+              status_resp = client.describe_instances(InstanceIds=[instance_id])
+              return status_resp['Reservations'][0]['Instances'][0]['State']['Name']
+
+      Description: "Checks whether the EC2 Instance is Started or not"
+      Environment:
+        Variables:
+          InstanceType: !Ref InstanceType
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaRole.Arn
+      Runtime: python3.6
+      Timeout: 300
+
+  RunSSMCommands:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      Code:
+        ZipFile: !Sub |
+          import boto3
+          import os
+          import json
+          client = boto3.client('ssm')
+          dynamodbclient = boto3.client('dynamodb')
+          def lambda_handler(event, context):
+              InstanceId = event['InstanceId']
+              AMIConfigTable = event['AMIConfigTable']
+              dynamodbresponse = dynamodbclient.scan(TableName=AMIConfigTable)
+              Items = dynamodbresponse['Items']
+              event['Commands'] = []
+              parameterList = ''
+              for x in Items:
+                  if 'parameters' not in x:
+                    parameterList = ''
+                  else:
+                    parameterList = json.loads(x['parameters']['S'])
+                  parameter ={}
+                  for y in parameterList:
+                      name = y['parametername'][0]
+                      value = y['parametervalue']
+                      parameter[name] = value
+                  response = client.send_command(
+                      InstanceIds=[InstanceId],
+                      DocumentName=x['documentname']['S'],
+                      Parameters=parameter
+
+                  )
+
+                  event['Commands'].append(response['Command']['CommandId'])
+
+              return event
+
+      Description: "Send SSM Command to instance based on the meta data from DynamoDB"
+      Environment:
+        Variables:
+          InstanceType: !Ref InstanceType
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaRole.Arn
+      Runtime: python3.6
+      Timeout: 300
+
+  CheckSSMCommandStatus:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      Code:
+        ZipFile: !Sub |
+          import boto3
+          import json
+
+          client = boto3.client('ssm')
+
+          def lambda_handler(event, context):
+              print(json.dumps(event,indent=4))
+              event['commandstatus'] =  "SUCCESS"
+              for command_id in event['Commands']:
+                  print (command_id)
+                  status = check_ssm_command_status(command_id)
+                  print (status)
+                  if status == 'InProgress':
+                      event['commandstatus'] =  "PENDING"
+                  if status == 'Failed':
+                          event['commandstatus'] =  "FAILED"
+                  if status == 'Cancelled':
+                          event['commandstatus'] =  "FAILED"
+              # handle 3 scenarios: PENDING, SUCCESS, FAILED
+              return event
+
+          def check_ssm_command_status(command_id):
+              response = client.list_commands(
+                  CommandId=command_id
+              )
+              return response['Commands'][0]['Status']
+
+      Description: "Checks whether all SSM Commands has been executed"
+      Environment:
+        Variables:
+          InstanceType: !Ref InstanceType
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaRole.Arn
+      Runtime: python3.6
+      Timeout: 300
+
+  CreateAMI:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      Code:
+        ZipFile: !Sub |
+          import json
+          import boto3
+          client = boto3.client('ec2')
+          from datetime import datetime
+
+          def lambda_handler(event, context):
+              # TODO implement
+              # client.start_automation_execution(
+              #     DocumentName='AWS-CreateImage',
+              #     Parameters={
+              #         'InstanceId': [
+              #             str(event['InstanceId']),
+              #         ]
+              #     },
+              # )
+
+              now = datetime.now() # current date and time
+              date_time = now.strftime("%m-%d-%Y-%H-%M-%S")
+              response = client.stop_instances(
+                  InstanceIds=[
+                      event['InstanceId']
+                  ]
+              )
+              waiter = client.get_waiter('instance_stopped')
+              waiter.wait(
+                  InstanceIds=[
+                      event['InstanceId']
+                  ]
+              )
+              response = client.create_image(
+                  InstanceId=event['InstanceId'],
+                  Name=event['AMIName']+ date_time,
+                  NoReboot=True)
+              print (response)
+              event['ImageId'] = response['ImageId']
+              return event
+      Description: "AMI Creation process"
+      Environment:
+        Variables:
+          InstanceType: !Ref InstanceType
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaRole.Arn
+      Runtime: python3.6
+      Timeout: 300
+
+  IsAMICreationCompleted:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      Code:
+        ZipFile: !Sub |
+          import boto3
+          import json
+          client = boto3.client('ec2')
+          ssm_client = boto3.client('ssm')
+          from datetime import datetime
+
+          def lambda_handler(event, context):
+              print(json.dumps(event,indent=4))
+              image_id=event['ImageId']
+
+
+              now = datetime.now() # current date and time
+              date_time = now.strftime("%m-%d-%Y-%H-%M-%S")
+              current_status=check_img_create_status(image_id)
+              if current_status == 'available':
+                  event['ImageCreated'] = "SUCCESS"
+                  ssm_client.put_parameter(
+                      Name=event['SSMParamterName'] + date_time,
+                      Value=image_id,
+                      Type='String'
+                  )
+
+              elif current_status == 'pending':
+                  event['ImageCreated'] = "PENDING"
+              else:
+                  event['ImageCreated'] = "FAILED"
+
+              return event
+          def check_img_create_status(image_id):
+              status_resp = client.describe_images(ImageIds=[image_id])
+              return status_resp['Images'][0]['State']
+
+      Description: "Checks Whether AMI is created successfully or not"
+      Environment:
+        Variables:
+          InstanceType: !Ref InstanceType
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaRole.Arn
+      Runtime: python3.6
+      Timeout: 300
+
+  TerminateEC2:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      Code:
+        ZipFile: !Sub |
+          import sys, os
+          import boto3
+          import json
+
+          client = boto3.client('ec2')
+
+          def lambda_handler(event, context):
+              print(json.dumps(event,indent=4))
+              instance_id=event['InstanceId']
+              current_status=terminateInstance(instance_id)
+              event['hasInstanceTerminated'] = current_status
+              waiter = client.get_waiter('instance_terminated')
+              waiter.wait(
+                  InstanceIds=[
+                      instance_id
+                  ]
+              )
+              return event
+
+          def terminateInstance(instance_id):
+              status_resp = client.terminate_instances(InstanceIds=[instance_id])
+              return status_resp['TerminatingInstances'][0]['CurrentState']['Name']
+
+      Description: "Terminates EC2 instance"
+      Environment:
+        Variables:
+          InstanceType: !Ref InstanceType
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaRole.Arn
+      Runtime: python3.6
+      Timeout: 300
+
+  AMIFactoryDynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        -
+          AttributeName: "documentname"
+          AttributeType: "S"
+      KeySchema:
+        -
+          AttributeName: "documentname"
+          KeyType: "HASH"
+      ProvisionedThroughput:
+        ReadCapacityUnits: "5"
+        WriteCapacityUnits: "5"
+      TableName: "Create-Golden-AMI-Metadata"
+
+  AMIFactoryStateMachine:
+    Type: "AWS::StepFunctions::StateMachine"
+    Properties:
+      DefinitionString:
+        !Sub
+        - |-
+          {
+            "Comment": "Steps Functions to create Golden AMI.",
+            "StartAt": "StartInstance",
+            "States": {
+              "StartInstance": {
+                "Type": "Task",
+                "Resource": "${LaunchInstanceArn}",
+                "Next": "InstanceStartCheck"
+              },
+              "InstanceStartCheck": {
+                "Type": "Task",
+                "Resource": "${CheckInstanceStatusArn}",
+                "ResultPath": "$",
+                "Next": "HasInstanceStarted"
+              },
+              "HasInstanceStarted": {
+                "Type": "Choice",
+                "Choices": [
+                  {
+                    "Variable": "$.HasInstanceStarted",
+                    "StringEquals": "YES",
+                    "Next": "InstallAutomationScripts"
+                  },
+                  {
+                    "Variable": "$.HasInstanceStarted",
+                    "StringEquals": "NO",
+                    "Next": "Wait X Seconds"
+                  }
+                ],
+                "Default": "Wait X Seconds"
+              },
+              "Wait X Seconds": {
+                "Type": "Wait",
+                "Seconds": 300,
+                "Next": "InstanceStartCheck"
+              },
+              "InstallAutomationScripts": {
+                "Type": "Task",
+                "Resource": "${RunSSMCommandsArn}",
+                "ResultPath": "$",
+                "Next": "AutomationScriptsCheck"
+              },
+              "AutomationScriptsCheck": {
+                "Type": "Task",
+                "Resource": "${CheckSSMCommandStatusArn}",
+                "ResultPath": "$",
+                "Next": "HasAutomationScriptsCompleted"
+              },
+              "HasAutomationScriptsCompleted": {
+                "Type": "Choice",
+                "Choices": [
+                  {
+                    "Variable": "$.commandstatus",
+                    "StringEquals": "SUCCESS",
+                    "Next": "CreateAMI"
+                  },
+                  {
+                    "Variable": "$.commandstatus",
+                    "StringEquals": "PENDING",
+                    "Next": "Wait Z Seconds"
+                  },
+                  {
+                    "Variable": "$.commandstatus",
+                    "StringEquals": "FAILED",
+                    "Next": "DefaultState"
+                  }
+                ],
+                "Default": "Wait Z Seconds"
+              },
+              "Wait Z Seconds": {
+                "Type": "Wait",
+                "Seconds": 120,
+                "Next": "AutomationScriptsCheck"
+              },
+              "CreateAMI": {
+                "Type": "Task",
+                "Resource": "${CreateAMIArn}",
+                "ResultPath": "$",
+                "Next": "IsAMICreationCompleted"
+              },
+              "IsAMICreationCompleted": {
+                "Type": "Task",
+                "Resource": "${IsAMICreationCompletedArn}",
+                "ResultPath": "$",
+                "Next": "checkAMICreation"
+              },
+              "checkAMICreation": {
+                "Type": "Choice",
+                "Choices": [
+                  {
+                    "Variable": "$.ImageCreated",
+                    "StringEquals": "SUCCESS",
+                    "Next": "TerminateEC2Instance"
+                  },
+                  {
+                    "Variable": "$.ImageCreated",
+                    "StringEquals": "FAILURE",
+                    "Next": "DefaultState"
+                  }
+                ],
+                "Default": "Wait Y Seconds"
+              },
+              "Wait Y Seconds": {
+                "Type": "Wait",
+                "Seconds": 120,
+                "Next": "IsAMICreationCompleted"
+              },
+              "TerminateEC2Instance": {
+                "Type": "Task",
+                "Resource": "${TerminateEC2Arn}",
+                "ResultPath": "$",
+                "Next": "Send Notification on AMI Creation"
+              },
+              "Send Notification on AMI Creation": {
+                "Type": "Task",
+                "Resource": "arn:aws:states:::sns:publish",
+                "Parameters": {
+                  "TopicArn": "${SNSTopicArn}",
+                  "Message": "AMI-Factory process completed successfully"
+                },
+                "ResultPath": "$",
+                "End": true
+              },
+              "DefaultState": {
+                "Type": "Fail",
+                "Error": "DefaultStateError",
+                "Cause": "No Matches!"
+              }
+            }
+          }
+        - {
+          LaunchInstanceArn: !GetAtt [ LaunchInstance, Arn ],
+          CheckInstanceStatusArn: !GetAtt [ CheckInstanceStatus, Arn ],
+          RunSSMCommandsArn: !GetAtt [ RunSSMCommands, Arn ],
+          CheckSSMCommandStatusArn: !GetAtt [ CheckSSMCommandStatus, Arn ],
+          CreateAMIArn: !GetAtt [ CreateAMI, Arn ],
+          IsAMICreationCompletedArn: !GetAtt [ IsAMICreationCompleted, Arn ],
+          TerminateEC2Arn: !GetAtt [ TerminateEC2, Arn ],
+          SNSTopicArn: !Ref SNSTopic
+        }
+      RoleArn: !GetAtt [ StatesExecutionRole, Arn ]
