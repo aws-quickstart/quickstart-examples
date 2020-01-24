@@ -1,0 +1,122 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: This Cloudformation template shows you how to use Cloudformation to deploy
+  WordPress using Helm charts. You will be deploying this into the "Amazon EKS QuickStart"
+  which is a qre-requist. "https://docs.aws.amazon.com/quickstart/latest/amazon-eks-architecture/welcome.html" **WARNING** You will be billed for the AWS resources used if you create a stack from this template.
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Wordpress
+        Parameters:
+          - wordpressUsername
+          - wordpressPassword
+      - Label:
+          default: Kube Cluster
+        Parameters:
+          - KubeClusterName
+          - KubeConfigPath
+          - KubeGetLambdaArn
+          - KubeConfigKmsContext
+          - HelmLambdaArn
+          - Namespace
+          - Name
+    ParameterLabels:
+      wordpressUsername:
+        default: Wordpress Username
+      wordpressPassword:
+        default: Wordpress Password
+      KubeClusterName:
+        default: EKS Kube Cluster Name
+      KubeConfigPath:
+        default: Kube Config Path
+      KubeGetLambdaArn:
+        default: Kube Get Lambda ARN
+      KubeConfigKmsContext:
+        default: Kube KMS Context
+      HelmLambdaArn:
+        default: EKS Stack Helm ARN
+      Namespace:
+        default: Kube Namespace for this function
+      Name:
+        default: Kube Name for this function
+Parameters:
+   wordpressUsername:
+    AllowedPattern: ^[a-z][a-z0-9_]*$
+    ConstraintDescription: User name parameter must be lowercase, begin with a letter,
+      contain only alphanumeric characters or underscores, and be less than 60 characters.
+    Default: admin
+    Description: 'The user name that is associated with the master user account for
+      Wordpress. The user name must contain fewer than 60 alphanumeric
+      characters or underscores, and must be lowercase and begin with a letter. '
+    MaxLength: '60'
+    MinLength: '1'
+    Type: String
+   wordpressPassword:
+    Description: 'The password that is associated with the master user account for
+      Wordpress. The password must contain 8 to 64 printable ASCII
+      characters, excluding: /, ", \'', \ and @. It must contain one uppercase letter,
+      one lowercase letter, and one number.'
+    MaxLength: '64'
+    NoEcho: 'true'
+    Type: String
+   HelmLambdaArn:
+    Description: 'Get this from the EKSStack outputs section in CloudFormation.'
+    Type: String
+   KubeClusterName:
+    Description: 'Get this from the EKSStack outputs section in CloudFormation.'
+    Type: String
+   KubeConfigPath:
+    Description: 'Get this from the EKSStack outputs section in CloudFormation.'
+    Type: String
+   KubeGetLambdaArn:
+    Description: 'Get this from the EKSStack outputs section in CloudFormation.'
+    Type: String
+   KubeConfigKmsContext:
+    Description: 'This is using the default from the AWS EKS Quick Start, if you modified
+    this context when deploying. You need to use the modified KMS context here.'
+    Type: String
+    Default: "EKSQuickStart"
+   Namespace:
+    Description: 'Modify to use a custom Namespace. The Namespace up to 63 characters
+    long. The characters allowed in names are: digits (0-9), lower case letters (a-z),
+    and underscore(s)(cannot start or end with)'
+    Type: String
+    Default: "example-helm"
+   Name:
+    Description: 'Modify to use a custom Names. The Names up to 253 characters
+    long. The characters allowed in names are: digits (0-9), lower case letters (a-z), -,
+    and ..'
+    Type: String
+    Default: "myrelease"
+Resources:
+  HelmExample:
+    Type: "Custom::Helm"
+    Version: '1.0'
+    Description: 'This deploys the Helm Chart to deploy wordpress in to the EKS Cluster.'
+    Properties:
+      ServiceToken: !Ref HelmLambdaArn
+      KubeConfigPath: !Ref KubeConfigPath
+      KubeConfigKmsContext: !Ref KubeConfigKmsContext
+      KubeClusterName: !Ref KubeClusterName
+      # RepoUrl: https://github.com/helm/charts/tree/master/stable/wordpress
+      Namespace: !Ref Namespace
+      Chart: stable/wordpress
+      Name: !Ref Name
+      Values:
+        wordpressUsername: !Ref wordpressUsername
+        wordpressPassword: !Ref wordpressPassword
+  WPElbHostName:
+    DependsOn: HelmExample
+    Type: "Custom::KubeGet"
+    Version: '1.0'
+    Properties:
+     ServiceToken: !Ref KubeGetLambdaArn
+     KubeConfigPath: !Ref KubeConfigPath
+     KubeConfigKmsContext: !Ref KubeConfigKmsContext
+     Namespace: !Ref Namespace
+     Name: !Sub 'service/${Name}-wordpress'
+     JsonPath: '{.status.loadBalancer.ingress[0].hostname}'
+
+Outputs:
+    WPElbHostName:
+      Value: !Ref WPElbHostName

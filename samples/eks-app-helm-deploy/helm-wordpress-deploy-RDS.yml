@@ -1,0 +1,248 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: This Cloudformation template shows you how to use Cloudformation to deploy
+  WordPress using Helm charts. You will be deploying this into the "Amazon EKS QuickStart"
+  which is a qre-requist. "https://docs.aws.amazon.com/quickstart/latest/amazon-eks-architecture/welcome.html" **WARNING** You will be billed for the AWS resources used if you create a stack from this template.
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Wordpress
+        Parameters:
+          - wordpressUsername
+          - wordpressPassword
+      - Label:
+          default: Kube Cluster
+        Parameters:
+          - KubeClusterName
+          - KubeConfigPath
+          - KubeGetLambdaArn
+          - KubeConfigKmsContext
+          - HelmLambdaArn
+          - Namespace
+          - Name
+      - Label:
+          default: MariaDB (RDS)
+        Parameters:
+          - DBMasterUsername
+          - DBMasterUserPassword
+          - DBName
+          - Subnet1ID
+          - Subnet2ID
+          - VPCID
+          - NodeGroupSecurityGroupId
+          - BastionSecurityGroupId
+    ParameterLabels:
+      wordpressUsername:
+        default: Wordpress Username
+      wordpressPassword:
+        default: Wordpress Password
+      KubeClusterName:
+        default: EKS Kube Cluster Name
+      KubeConfigPath:
+        default: Kube Config Path
+      KubeGetLambdaArn:
+        default: Kube Get Lambda ARN
+      KubeConfigKmsContext:
+        default: Kube KMS Context
+      HelmLambdaArn:
+        default: EKS Stack Helm ARN
+      Namespace:
+        default: Kube Namespace for this function
+      Name:
+        default: Kube Name for this function
+      DBMasterUsername:
+        default: MariaDB Master User Name
+      DBMasterUserPassword:
+        default: MariaDB Master User Password
+      DBName:
+        default: MariaDB Database Name
+      Subnet1ID:
+        default: Private Subnet One
+      Subnet2ID:
+        default: Private Subnet Two
+      VPCID:
+        default: EKS Stack VPC ID
+      NodeGroupSecurityGroupId:
+        default: Node SecurityGroup ID
+      BastionSecurityGroupId:
+        default: Bastion SecurityGroup ID
+Parameters:
+   wordpressUsername:
+    AllowedPattern: ^[a-z][a-z0-9_]*$
+    ConstraintDescription: User name parameter must be lowercase, begin with a letter,
+      contain only alphanumeric characters or underscores, and be less than 60 characters.
+    Default: admin
+    Description: 'The user name that is associated with the master user account for
+      Wordpress. The user name must contain fewer than 60 alphanumeric
+      characters or underscores, and must be lowercase and begin with a letter. '
+    MaxLength: '60'
+    MinLength: '1'
+    Type: String
+   wordpressPassword:
+    Description: 'The password that is associated with the master user account for
+      Wordpress. The password must contain 8 to 64 printable ASCII
+      characters, excluding: /, ", \'', \ and @. It must contain one uppercase letter,
+      one lowercase letter, and one number.'
+    MaxLength: '64'
+    NoEcho: 'true'
+    Type: String
+   HelmLambdaArn:
+    Description: 'Get this from the EKSStack outputs section in CloudFormation.'
+    Type: String
+   KubeClusterName:
+    Description: 'This is the "EKSClusterName" you get from the EKSStack outputs section in CloudFormation.'
+    Type: String
+   KubeConfigPath:
+    Description: 'Get this from the EKSStack outputs section in CloudFormation.'
+    Type: String
+   KubeGetLambdaArn:
+    Description: 'Get this from the EKSStack outputs section in CloudFormation.'
+    Type: String
+   KubeConfigKmsContext:
+    Description: 'This is using the default from the AWS EKS Quick Start, if you modified
+    this context when deploying. You need to use the modified KMS context here.'
+    Type: String
+    Default: "EKSQuickStart"
+   Namespace:
+    Description: 'Modify to use a custom Namespace. The Namespace up to 63 characters
+    long. The characters allowed in names are: digits (0-9), lower case letters (a-z),
+    and underscore(s)(cannot start or end with)'
+    Type: String
+    Default: "example-helm-rds"
+   Name:
+    Description: 'Modify to use a custom Names. The Names up to 253 characters
+    long. The characters allowed in names are: digits (0-9), lower case letters (a-z), -,
+    and ..'
+    Type: String
+    Default: "myrelease-rds"
+   DBMasterUsername:
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
+    Default: mariadb
+    Description: "The database admin account username"
+    MaxLength: '16'
+    MinLength: '1'
+    NoEcho: 'true'
+    Type: String
+   DBMasterUserPassword:
+    AllowedPattern: '(?=^.{6,255}$)((?=.*\\d)(?=.*[A-Z])(?=.*[a-z])|(?=.*\\d)(?=.*[^A-Za-z0-9])(?=.*[a-z])|(?=.*[^A-Za-z0-9])(?=.*[A-Z])(?=.*[a-z])|(?=.*\\d)(?=.*[A-Z])(?=.*[^A-Za-z0-9]))^.*'
+    ConstraintDescription: "Min 8 chars. Must include 1 uppercase, 1 lowercase, 1 number, 1 (non / @ \" ') symbol"
+    Description: "Password for the master ('mariadb') account. Password must meeting the following: Min 8 chars. Must include 1 uppercase, 1 lowercase, 1 number, 1 (non / @ \" ') symbol."
+    MinLength: 8
+    MaxLength: 128
+    NoEcho: true
+    Type: String
+   DBName:
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric characters. Cannot be longer than 64 charcters.
+    Default: wordpress
+    Description: "The database name to create."
+    MaxLength: '64'
+    MinLength: '1'
+    Type: String
+   Subnet1ID:
+    Description: 'Get Private Subnet 1 ID from the VPCStack outputs section in CloudFormation.'
+    Type: AWS::EC2::Subnet::Id
+   Subnet2ID:
+    Description: 'Get Private Subnet 2 ID from the VPCStack outputs section in CloudFormation.'
+    Type: AWS::EC2::Subnet::Id
+   NodeGroupSecurityGroupId:
+    Description: 'Get NodeGroupSecurityGroupId from the EKSStack outputs section in CloudFormation.'
+    Type: String
+   BastionSecurityGroupId:
+    Description: 'Get BastionSecurityGroupId from the EKSStack outputs section in CloudFormation.'
+    Type: String
+   VPCID:
+    Type: AWS::EC2::VPC::Id
+    Description: 'Get VCP ID from the VPCStack outputs section in CloudFormation.'
+
+Resources:
+  DBEC2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Open database for access
+      VpcId: !Ref VPCID
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '3306'
+        ToPort: '3306'
+        SourceSecurityGroupId: !Ref NodeGroupSecurityGroupId
+        Description: "This rule is needed to allow RDS from the Node Instances."
+  DBInboundRule:
+    Type: "AWS::EC2::SecurityGroupIngress"
+    Properties:
+      Description: "This rule is needed to allow RDS from the Bastion Instance."
+      GroupId: !GetAtt DBEC2SecurityGroup.GroupId
+      IpProtocol: tcp
+      FromPort: '3306'
+      ToPort: '3306'
+      SourceSecurityGroupId: !Ref BastionSecurityGroupId
+  DBSubnetGroup:
+    Type: "AWS::RDS::DBSubnetGroup"
+    Properties:
+      DBSubnetGroupDescription: "Subnets available for the MariaDB database instance"
+      SubnetIds:
+      - !Ref Subnet1ID
+      - !Ref Subnet2ID
+  WPDB:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      AllocatedStorage: 10
+      AutoMinorVersionUpgrade: true
+      BackupRetentionPeriod: 7
+      DBInstanceClass: db.m5.large
+      # In the next line of code the '-DB' delimeter is used to get the root stack name for database identifier
+      # 'AWS::StackName' produces MASTER_STACK_NAME-DB (as DB is the name of the nested stack resource).
+      DBInstanceIdentifier: !Sub ["${RootStack}-db", RootStack: !Select [0, !Split ['-DB', !Ref 'AWS::StackName']]]
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      Engine: mariadb
+      EngineVersion: 10.3
+      MasterUsername: !Ref DBMasterUsername
+      MasterUserPassword: !Ref DBMasterUserPassword
+      MultiAZ: false
+      StorageEncrypted: true
+      StorageType: gp2
+      DBName: !Ref DBName
+      Tags:
+        - Key: Name
+          Value: !Sub ["${StackName} Confluence MariaDB Database", StackName: !Ref 'AWS::StackName']
+      VPCSecurityGroups:
+      - !GetAtt DBEC2SecurityGroup.GroupId
+  HelmExample:
+    DependsOn: WPDB
+    Type: "Custom::Helm"
+    Version: '1.0'
+    Description: 'This deploys the Helm Chart to deploy wordpress in to the EKS Cluster, using an external database.'
+    Properties:
+      ServiceToken: !Ref HelmLambdaArn
+      KubeConfigPath: !Ref KubeConfigPath
+      KubeConfigKmsContext: !Ref KubeConfigKmsContext
+      KubeClusterName: !Ref KubeClusterName
+      # RepoUrl: https://github.com/helm/charts/tree/master/stable/wordpress
+      Namespace: !Ref Namespace
+      Chart: stable/wordpress
+      Name: !Ref Name
+      Values:
+        wordpressUsername: !Ref wordpressUsername
+        wordpressPassword: !Ref wordpressPassword
+        mariadb.enabled: false
+        externalDatabase.host: !GetAtt WPDB.Endpoint.Address
+        externalDatabase.user: !Ref DBMasterUsername
+        externalDatabase.password: !Ref DBMasterUserPassword
+        externalDatabase.database: !Ref DBName
+        externalDatabase.port: 3306
+  WPElbHostName:
+    DependsOn: HelmExample
+    Type: "Custom::KubeGet"
+    Version: '1.0'
+    Properties:
+     ServiceToken: !Ref KubeGetLambdaArn
+     KubeConfigPath: !Ref KubeConfigPath
+     KubeConfigKmsContext: !Ref KubeConfigKmsContext
+     Namespace: !Ref Namespace
+     Name: !Sub 'service/${Name}-wordpress'
+     JsonPath: '{.status.loadBalancer.ingress[0].hostname}'
+
+Outputs:
+  WPElbHostName:
+    Value: !Ref WPElbHostName
