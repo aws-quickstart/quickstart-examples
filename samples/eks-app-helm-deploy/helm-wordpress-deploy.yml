@@ -92,7 +92,6 @@ Resources:
   HelmExample:
     Type: "Custom::Helm"
     Version: '1.0'
-    Description: 'This deploys the Helm Chart to deploy wordpress in to the EKS Cluster.'
     Properties:
       ServiceToken: !Ref HelmLambdaArn
       KubeConfigPath: !Ref KubeConfigPath
