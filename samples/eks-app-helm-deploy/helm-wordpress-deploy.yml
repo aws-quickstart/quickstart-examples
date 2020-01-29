@@ -97,7 +97,6 @@ Resources:
       KubeConfigPath: !Ref KubeConfigPath
       KubeConfigKmsContext: !Ref KubeConfigKmsContext
       KubeClusterName: !Ref KubeClusterName
-      # RepoUrl: https://github.com/helm/charts/tree/master/stable/wordpress
       Namespace: !Ref Namespace
       Chart: stable/wordpress
       Name: !Ref Name
