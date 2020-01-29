@@ -209,7 +209,6 @@ Resources:
       VPCSecurityGroups:
       - !GetAtt DBEC2SecurityGroup.GroupId
   HelmExample:
-    DependsOn: WPDB
     Type: "Custom::Helm"
     Version: '1.0'
     Properties:
@@ -230,6 +229,7 @@ Resources:
         externalDatabase.database: !Ref DBName
         externalDatabase.port: 3306
   WPElbHostName:
+    DependsOn: HelmExample
     Type: "Custom::KubeGet"
     Version: '1.0'
     Properties:
