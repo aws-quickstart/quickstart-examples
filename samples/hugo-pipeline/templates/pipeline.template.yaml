@@ -85,6 +85,7 @@ Resources:
               runtime-versions:
                 python: 3.8
               commands:
+                - apt-get update
                 - echo Installing hugo, jq
                 - apt-get install hugo
                 - apt-get install jq

@@ -23,8 +23,8 @@ tests:
     parameters:
       RepoName: hugo-repo
       HostingBucketName: hugowebsitebucket
-      QSS3BucketName: $[taskcat_autobucket]
+      S3BucketName: $[taskcat_autobucket]
     regions:
-    - us-west-2
+      - us-west-2
     s3_bucket: ''
     template: templates/master.template.yaml

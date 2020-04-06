@@ -25,13 +25,31 @@ Resources:
       BucketName: !Ref HostingBucketName
       WebsiteConfiguration:
         IndexDocument: index.html
+  WebHostingBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties: 
+      Bucket: !Ref WebHostingBucket
+      PolicyDocument:
+        Statement:
+          - 
+            Action:
+              - "s3:GetObject"
+            Effect: "Allow"
+            Resource:
+              Fn::Join:
+                - ""
+                -
+                  - "arn:aws:s3:::"
+                  - !Ref WebHostingBucket
+                  - "/*"
+            Principal: "*"
   IAMRoleStack:
     Type: 'AWS::CloudFormation::Stack'
     DependsOn:
       - ArtifactBucket
     Properties:
       TemplateURL: !Sub >-
-        https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/iam.template.yaml
+        https://${S3BucketName}.s3.amazonaws.com/${S3KeyPrefix}templates/iam.template.yaml
       Parameters:
         WebsiteBucket: !Ref WebHostingBucket
         ArtifactBucket: !Ref ArtifactBucket
@@ -41,7 +59,7 @@ Resources:
       - WebHostingBucket
     Properties:
       TemplateURL: !Sub >-
-        https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/pipeline.template.yaml
+        https://${S3BucketName}.s3.amazonaws.com/${S3KeyPrefix}templates/pipeline.template.yaml
       Parameters:
         ArtifactBucket: !Ref ArtifactBucket
         CodePipelineRoleArn: !GetAtt 
