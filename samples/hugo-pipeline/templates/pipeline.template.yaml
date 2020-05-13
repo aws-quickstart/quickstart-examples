@@ -87,7 +87,10 @@ Resources:
               commands:
                 - apt-get update
                 - echo Installing hugo, jq
-                - apt-get install hugo
+                - # Use github release to get the latest hugo binary. Ubuntu repository lags behind and contain older hugo binary version.
+                - curl -L -o hugo.deb https://github.com/gohugoio/hugo/releases/download/v0.70.0/hugo_0.70.0_Linux-64bit.deb
+                - dpkg -i hugo.deb
+                - # apt-get install hugo
                 - apt-get install jq
             pre_build:
               commands:
