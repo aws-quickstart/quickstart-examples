@@ -36,6 +36,7 @@ Metadata:
         default: AWS Quick Start configuration
       Parameters:
       - QSS3BucketName
+      - QSS3BucketRegion
       - QSS3KeyPrefix
     ParameterLabels:
       BastionSecurityGroupID:
@@ -54,6 +55,8 @@ Metadata:
         default: Public subnet 2 ID
       QSS3BucketName:
         default: Quick Start S3 bucket name
+      QSS3BucketRegion:
+        default: Quick Start S3 bucket region
       QSS3KeyPrefix:
         default: Quick Start S3 key prefix
       S3BucketName:
@@ -108,6 +111,10 @@ Parameters:
     Description: S3 bucket name for the Quick Start assets. This string can include
       numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start
       or end with a hyphen (-).
+    Type: String
+  QSS3BucketRegion:
+    Default: 'us-east-1'
+    Description: 'The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value.'
     Type: String
   QSS3KeyPrefix:
     AllowedPattern: ^[0-9a-zA-Z-/]*$
@@ -217,6 +224,8 @@ Mappings:
       AMZNLINUXHVM: ami-021bb9f371690f97a
     us-west-2:
       AMZNLINUXHVM: ami-079f731edfe27c29c
+Conditions:
+  UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-quickstart']
 Resources:
   NotificationTopic:
     Type: AWS::SNS::Topic
@@ -283,7 +292,12 @@ Resources:
           - Action:
             - s3:GetObject
             Resource:
-              Fn::Sub: arn:aws:s3:::${QSS3BucketName}/${QSS3KeyPrefix}*
+              - !Sub
+                - arn:${AWS::Partition}:s3:::${S3Bucket}/${QSS3KeyPrefix}*
+                - S3Bucket: !If 
+                  - UsingDefaultBucket
+                  - !Sub '${QSS3BucketName}-${AWS::Region}'
+                  - !Ref QSS3BucketName
             Effect: Allow
         PolicyName: aws-quick-start-s3-policy
       - PolicyName: WorkloadSetup
