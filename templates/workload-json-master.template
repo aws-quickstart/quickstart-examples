@@ -53,6 +53,7 @@
                     },
                     "Parameters": [
                         "QSS3BucketName",
+                        "QSS3BucketRegion",
                         "QSS3KeyPrefix"
                     ]
                 }
@@ -89,10 +90,10 @@
                     "default": "Quick Start S3 bucket name"
                 },
                 "QSS3KeyPrefix": {
-                    "default": "Quick Start S3 key prefix"
+                    "default": "Quick Start S3 Key Prefix"
                 },
                 "S3BucketName": {
-                    "default": "S3 Bucket Name"
+                    "default": "S3 bucket name"
                 },
                 "RemoteAccessCIDR": {
                     "default": "Allowed bastion external access CIDR"
@@ -195,6 +196,11 @@
             "Description": "S3 bucket name for the Quick Start assets. This string can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
             "Type": "String"
         },
+        "QSS3BucketRegion": {
+            "Default": "us-east-1",
+            "Description": "The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value.",
+            "Type": "String"
+        },
         "QSS3KeyPrefix": {
             "AllowedPattern": "^[0-9a-zA-Z-/]*$",
             "ConstraintDescription": "Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
@@ -253,7 +259,7 @@
         },
         "WorkloadNodesDesiredCapacity": {
             "Default": "2",
-            "Description": "Desired capacity for the Workload nodes Auto Scaling group.",
+            "Description": "Desired capacity for the workload nodes Auto Scaling group.",
             "Type": "String"
         },
         "WorkloadNodesMaxSize": {
@@ -267,12 +273,48 @@
             "Type": "String"
         }
     },
+    "Conditions": {
+        "UsingDefaultBucket": {
+            "Fn::Equals": [
+                {
+                    "Ref": "QSS3BucketName"
+                },
+                "aws-quickstart"
+            ]
+        }
+    },
     "Resources": {
         "VPCStack": {
             "Type": "AWS::CloudFormation::Stack",
             "Properties": {
                 "TemplateURL": {
-                    "Fn::Sub": "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}submodules/quickstart-aws-vpc/templates/aws-vpc.template"
+                    "Fn::Sub": [
+                        "https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}submodules/quickstart-aws-vpc/templates/aws-vpc.template",
+                        {
+                            "S3Region": {
+                                "Fn::If": [
+                                    "UsingDefaultBucket",
+                                    {
+                                        "Ref": "AWS::Region"
+                                    },
+                                    {
+                                        "Ref": "QSS3BucketRegion"
+                                    }
+                                ]
+                            },
+                            "S3Bucket": {
+                                "Fn::If": [
+                                    "UsingDefaultBucket",
+                                    {
+                                        "Fn::Sub": "${QSS3BucketName}-${AWS::Region}"
+                                    },
+                                    {
+                                        "Ref": "QSS3BucketName"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
                 },
                 "Parameters": {
                     "AvailabilityZones": {
@@ -310,9 +352,44 @@
             "Type": "AWS::CloudFormation::Stack",
             "Properties": {
                 "TemplateURL": {
-                    "Fn::Sub": "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}submodules/quickstart-linux-bastion/templates/linux-bastion.template"
+                    "Fn::Sub": [
+                        "https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}submodules/quickstart-linux-bastion/templates/linux-bastion.template",
+                        {
+                            "S3Region": {
+                                "Fn::If": [
+                                    "UsingDefaultBucket",
+                                    {
+                                        "Ref": "AWS::Region"
+                                    },
+                                    {
+                                        "Ref": "QSS3BucketRegion"
+                                    }
+                                ]
+                            },
+                            "S3Bucket": {
+                                "Fn::If": [
+                                    "UsingDefaultBucket",
+                                    {
+                                        "Fn::Sub": "${QSS3BucketName}-${AWS::Region}"
+                                    },
+                                    {
+                                        "Ref": "QSS3BucketName"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
                 },
                 "Parameters": {
+                    "QSS3BucketName": {
+                        "Ref": "QSS3BucketName"
+                    },
+                    "QSS3BucketRegion": {
+                        "Ref": "QSS3BucketRegion"
+                    },
+                    "QSS3KeyPrefix": {
+                        "Sub": "${QSS3KeyPrefix}submodules/quickstart-linux-bastion/"
+                    },
                     "BastionAMIOS": {
                         "Ref": "BastionAMIOS"
                     },
@@ -334,12 +411,6 @@
                             "Outputs.PublicSubnet2ID"
                         ]
                     },
-                    "QSS3BucketName": {
-                        "Ref": "QSS3BucketName"
-                    },
-                    "QSS3KeyPrefix": {
-                        "Fn::Sub": "${QSS3KeyPrefix}submodules/quickstart-linux-bastion/"
-                    },
                     "RemoteAccessCIDR": {
                         "Ref": "RemoteAccessCIDR"
                     },
@@ -357,7 +428,33 @@
             "Type": "AWS::CloudFormation::Stack",
             "Properties": {
                 "TemplateURL": {
-                    "Fn::Sub": "https://${QSS3BucketName}.s3.amazonaws.com/${QSS3KeyPrefix}templates/workload-json.template"
+                    "Fn::Sub": [
+                        "https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/workload-yaml.template",
+                        {
+                            "S3Region": {
+                                "Fn::If": [
+                                    "UsingDefaultBucket",
+                                    {
+                                        "Ref": "AWS::Region"
+                                    },
+                                    {
+                                        "Ref": "QSS3BucketRegion"
+                                    }
+                                ]
+                            },
+                            "S3Bucket": {
+                                "Fn::If": [
+                                    "UsingDefaultBucket",
+                                    {
+                                        "Fn::Sub": "${QSS3BucketName}-${AWS::Region}"
+                                    },
+                                    {
+                                        "Ref": "QSS3BucketName"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
                 },
                 "Parameters": {
                     "WorkloadInstanceType": {
@@ -410,6 +507,9 @@
                     },
                     "QSS3BucketName": {
                         "Ref": "QSS3BucketName"
+                    },
+                    "QSS3BucketRegion": {
+                        "Ref": "QSS3BucketRegion"
                     },
                     "QSS3KeyPrefix": {
                         "Ref": "QSS3KeyPrefix"
