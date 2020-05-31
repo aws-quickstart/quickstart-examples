@@ -1,0 +1,201 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Creates Pipeline to build and publish Hugo based static site.
+Resources:
+  CodePipeline:
+    Type: 'AWS::CodePipeline::Pipeline'
+    Properties:
+      ArtifactStore:
+        Type: S3
+        Location: !Ref ArtifactBucket
+      RoleArn: !Ref CodePipelineRoleArn
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: CodeCommit
+              InputArtifacts: []
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Version: '1'
+                Provider: CodeCommit
+              OutputArtifacts:
+                - Name: SourceArtifact
+              Configuration:
+                BranchName: !Ref RepoBranch
+                PollForSourceChanges: false
+                RepositoryName: !Ref RepoName
+              RunOrder: 1
+        - Name: Build
+          Actions:
+            - Name: CodeBuild
+              InputArtifacts:
+                - Name: SourceArtifact
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: '1'
+                Provider: CodeBuild
+              OutputArtifacts:
+                - Name: BuildArtifact
+              Configuration:
+                ProjectName: !Ref CodeBuildProject
+              RunOrder: 1
+        - Name: Deploy
+          Actions:
+            - Name: Deploy-to-S3
+              InputArtifacts:
+                - Name: BuildArtifact
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: '1'
+                Provider: S3
+              Configuration:
+                BucketName: !Ref WebsiteBucket
+                Extract: true
+              RunOrder: 1
+  CodeBuildProject:
+    Type: 'AWS::CodeBuild::Project'
+    Properties:
+      Description: !Sub 'Submit build jobs for ${RepoName} as part of CI/CD pipeline'
+      ServiceRole: !Ref CodeBuildRoleArn
+      Artifacts:
+        Type: CODEPIPELINE
+        Packaging: NONE
+        EncryptionDisabled: false
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: 'aws/codebuild/standard:3.0'
+        EnvironmentVariables:
+          - Name: CLOUDFRONT_DISTRIBUTION_ID
+            Value: !Sub '${CloudfrontDistId}'
+          - Name: CLOUDFRONT_CROSS_ACCOUNT_ROLE
+            Value: !Sub '${CloudfrontRole}'
+          - Name: WEBSITE_BUCKET
+            Value: !Ref WebsiteBucket
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: |-
+
+          version: 0.2
+
+          phases:
+            install:
+              runtime-versions:
+                python: 3.8
+              commands:
+                - apt-get update
+                - echo Installing hugo, jq
+                - # Use github release to get the latest hugo binary. Ubuntu repository lags behind and contain older hugo binary version.
+                - curl -L -o hugo.deb https://github.com/gohugoio/hugo/releases/download/v0.70.0/hugo_0.70.0_Linux-64bit.deb
+                - dpkg -i hugo.deb
+                - # apt-get install hugo
+                - apt-get install jq
+            pre_build:
+              commands:
+                - echo In pre_build phase..
+                - echo Current directory is $CODEBUILD_SRC_DIR
+                - ls -la
+            build:
+              commands:
+                - hugo -v
+            post_build:
+              commands:
+                - echo Publish changes to S3 bucket..
+          artifacts:
+            files:
+              - '**/*'
+            base-directory: public
+      BadgeEnabled: false
+      LogsConfig:
+        CloudWatchLogs:
+          Status: ENABLED
+  AmazonCloudWatchEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern:
+        source:
+          - aws.codecommit
+        detail-type:
+          - 'CodeCommit Repository State Change'
+        resources:
+          - !Join [ '', [ 'arn:aws:codecommit:', !Ref 'AWS::Region', ':', !Ref 'AWS::AccountId', ':', !Ref RepoName ] ]
+        detail:
+          event:
+            - referenceCreated
+            - referenceUpdated
+          referenceType:
+            - branch
+          referenceName:
+            - !Ref RepoBranch
+      Targets:
+        -
+          Arn: 
+            !Join [ '', [ 'arn:aws:codepipeline:', !Ref 'AWS::Region', ':', !Ref 'AWS::AccountId', ':', !Ref CodePipeline ] ]
+          RoleArn: !GetAtt AmazonCloudWatchEventRole.Arn
+          Id: codepipeline-CICDPipeline
+  AmazonCloudWatchEventRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - events.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      Policies:
+        -
+          PolicyName: cwe-pipeline-execution
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              -
+                Effect: Allow
+                Action: codepipeline:StartPipelineExecution
+                Resource: !Join [ '', [ 'arn:aws:codepipeline:', !Ref 'AWS::Region', ':', !Ref 'AWS::AccountId', ':', !Ref CodePipeline ] ] 
+  
+
+Parameters:
+  ArtifactBucket:
+    AllowedPattern: '^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$'
+    ConstraintDescription: >-
+      S3 bucket name can include numbers, lowercase letters, uppercase letters,
+      and hyphens (-). It cannot start or end with a hyphen (-).
+    Description: S3 bucket name used to store build artifacts.
+    Type: String
+  CodePipelineRoleArn:
+    Description: Code Pipeline service role ARN
+    Type: String
+  CodeBuildRoleArn:
+    Description: Code Build service role ARN
+    Type: String
+  CloudfrontDistId:
+    Description: AWS CloudFront distribution Id of the website
+    Type: String
+  CloudfrontRole:
+    Description: >-
+      AWS CloudFront role arn which has permissions to invalidate session of the
+      CloudFront distribution of the website endpoint. This CloudFront role arn
+      is used by code build job.
+    Type: String
+  WebsiteBucket:
+    Description: S3 Bucket which hosts the content of the website.
+    Type: String
+    Default: hugo-target
+  RepoName:
+    Description: AWS CodeCommit repository name which contains Hugo files
+    Type: String
+  RepoBranch:
+    Description: Name of the repository branch which contains the Hugo files
+    Type: String
+    Default: master
+
+Outputs:
+  CodePipelineName:
+    Description: Pipeline name
+    Value: !Ref CodePipeline

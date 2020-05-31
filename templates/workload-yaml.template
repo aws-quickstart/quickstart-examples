@@ -36,6 +36,7 @@ Metadata:
         default: AWS Quick Start configuration
       Parameters:
       - QSS3BucketName
+      - QSS3BucketRegion
       - QSS3KeyPrefix
     ParameterLabels:
       BastionSecurityGroupID:
@@ -54,6 +55,8 @@ Metadata:
         default: Public subnet 2 ID
       QSS3BucketName:
         default: Quick Start S3 bucket name
+      QSS3BucketRegion:
+        default: Quick Start S3 bucket region
       QSS3KeyPrefix:
         default: Quick Start S3 key prefix
       S3BucketName:
@@ -108,6 +111,10 @@ Parameters:
     Description: S3 bucket name for the Quick Start assets. This string can include
       numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start
       or end with a hyphen (-).
+    Type: String
+  QSS3BucketRegion:
+    Default: 'us-east-1'
+    Description: 'The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value.'
     Type: String
   QSS3KeyPrefix:
     AllowedPattern: ^[0-9a-zA-Z-/]*$
@@ -190,33 +197,35 @@ Mappings:
     AMI:
       AMZNLINUXHVM: amzn-ami-hvm-2018.03.0.20190611-x86_64-gp2
     ap-northeast-1:
-      AMZNLINUXHVM: ami-079e6fb1e856e80c1
+      AMZNLINUXHVM: ami-02ddf94e5edc8e904
     ap-northeast-2:
-      AMZNLINUXHVM: ami-0e4a253fb5f082688
+      AMZNLINUXHVM: ami-0ecd78c22823e02ef
     ap-south-1:
-      AMZNLINUXHVM: ami-01e074f40dfb9999d
+      AMZNLINUXHVM: ami-05695932c5299858a
     ap-southeast-1:
-      AMZNLINUXHVM: ami-0d9233e8ce73df7b2
+      AMZNLINUXHVM: ami-043afc2b8b6cfba5c
     ap-southeast-2:
-      AMZNLINUXHVM: ami-0c91f97cadcc8499e
+      AMZNLINUXHVM: ami-01393ce9a3ca55d67
     ca-central-1:
-      AMZNLINUXHVM: ami-003a0ba7ea76b2785
+      AMZNLINUXHVM: ami-0fa94ecf2fef3420b
     eu-central-1:
-      AMZNLINUXHVM: ami-0ab838eeee7f316eb
+      AMZNLINUXHVM: ami-0ba441bdd9e494102
     eu-west-1:
-      AMZNLINUXHVM: ami-071f4ce599deff521
+      AMZNLINUXHVM: ami-0e61341fa75fcaa18
     eu-west-2:
-      AMZNLINUXHVM: ami-0e49551fc78560451
+      AMZNLINUXHVM: ami-050b8344d77081f4b
     sa-east-1:
-      AMZNLINUXHVM: ami-04b202bf877b5027b
+      AMZNLINUXHVM: ami-05b7dbc290217250d
     us-east-1:
-      AMZNLINUXHVM: ami-09d069a04349dc3cb
+      AMZNLINUXHVM: ami-0e2ff28bfb72a4e45
     us-east-2:
-      AMZNLINUXHVM: ami-0d542ef84ec55d71c
+      AMZNLINUXHVM: ami-0998bf58313ab53da
     us-west-1:
-      AMZNLINUXHVM: ami-04bc3da8f14823e88
+      AMZNLINUXHVM: ami-021bb9f371690f97a
     us-west-2:
-      AMZNLINUXHVM: ami-01460aa81365561fe
+      AMZNLINUXHVM: ami-079f731edfe27c29c
+Conditions:
+  UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-quickstart']
 Resources:
   NotificationTopic:
     Type: AWS::SNS::Topic
@@ -283,7 +292,12 @@ Resources:
           - Action:
             - s3:GetObject
             Resource:
-              Fn::Sub: arn:aws:s3:::${QSS3BucketName}/${QSS3KeyPrefix}*
+              - !Sub
+                - arn:${AWS::Partition}:s3:::${S3Bucket}/${QSS3KeyPrefix}*
+                - S3Bucket: !If 
+                  - UsingDefaultBucket
+                  - !Sub '${QSS3BucketName}-${AWS::Region}'
+                  - !Ref QSS3BucketName
             Effect: Allow
         PolicyName: aws-quick-start-s3-policy
       - PolicyName: WorkloadSetup

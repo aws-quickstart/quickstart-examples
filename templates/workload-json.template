@@ -51,6 +51,7 @@
                     },
                     "Parameters": [
                         "QSS3BucketName",
+                        "QSS3BucketRegion",
                         "QSS3KeyPrefix"
                     ]
                 }
@@ -79,6 +80,9 @@
                 },
                 "QSS3BucketName": {
                     "default": "Quick Start S3 bucket name"
+                },
+                "QSS3BucketRegion": {
+                    "default": "Quick Start S3 bucket region"
                 },
                 "QSS3KeyPrefix": {
                     "default": "Quick Start S3 key prefix"
@@ -142,6 +146,11 @@
             "Description": "S3 bucket name for the Quick Start assets. This string can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).",
             "Type": "String"
         },
+        "QSS3BucketRegion": {
+            "Default": "us-east-1",
+            "Description": "The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value.",
+            "Type": "String"
+        },
         "QSS3KeyPrefix": {
             "AllowedPattern": "^[0-9a-zA-Z-/]*$",
             "ConstraintDescription": "Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).",
@@ -191,7 +200,7 @@
         },
         "WorkloadNodesDesiredCapacity": {
             "Default": "2",
-            "Description": "Desired capacity for the Workload nodes Auto Scaling group.",
+            "Description": "Desired capacity for the workload nodes Auto Scaling group.",
             "Type": "String"
         },
         "WorkloadNodesMaxSize": {
@@ -252,47 +261,57 @@
                 "AMZNLINUXHVM": "amzn-ami-hvm-2018.03.0.20190611-x86_64-gp2"
             },
             "ap-northeast-1": {
-                "AMZNLINUXHVM": "ami-079e6fb1e856e80c1"
+                "AMZNLINUXHVM": "ami-02ddf94e5edc8e904"
             },
             "ap-northeast-2": {
-                "AMZNLINUXHVM": "ami-0e4a253fb5f082688"
+                "AMZNLINUXHVM": "ami-0ecd78c22823e02ef"
             },
             "ap-south-1": {
-                "AMZNLINUXHVM": "ami-01e074f40dfb9999d"
+                "AMZNLINUXHVM": "ami-05695932c5299858a"
             },
             "ap-southeast-1": {
-                "AMZNLINUXHVM": "ami-0d9233e8ce73df7b2"
+                "AMZNLINUXHVM": "ami-043afc2b8b6cfba5c"
             },
             "ap-southeast-2": {
-                "AMZNLINUXHVM": "ami-0c91f97cadcc8499e"
+                "AMZNLINUXHVM": "ami-01393ce9a3ca55d67"
             },
             "ca-central-1": {
-                "AMZNLINUXHVM": "ami-003a0ba7ea76b2785"
+                "AMZNLINUXHVM": "ami-0fa94ecf2fef3420b"
             },
             "eu-central-1": {
-                "AMZNLINUXHVM": "ami-0ab838eeee7f316eb"
+                "AMZNLINUXHVM": "ami-0ba441bdd9e494102"
             },
             "eu-west-1": {
-                "AMZNLINUXHVM": "ami-071f4ce599deff521"
+                "AMZNLINUXHVM": "ami-0e61341fa75fcaa18"
             },
             "eu-west-2": {
-                "AMZNLINUXHVM": "ami-0e49551fc78560451"
+                "AMZNLINUXHVM": "ami-050b8344d77081f4b"
             },
             "sa-east-1": {
-                "AMZNLINUXHVM": "ami-04b202bf877b5027b"
+                "AMZNLINUXHVM": "ami-05b7dbc290217250d"
             },
             "us-east-1": {
-                "AMZNLINUXHVM": "ami-09d069a04349dc3cb"
+                "AMZNLINUXHVM": "ami-0e2ff28bfb72a4e45"
             },
             "us-east-2": {
-                "AMZNLINUXHVM": "ami-0d542ef84ec55d71c"
+                "AMZNLINUXHVM": "ami-0998bf58313ab53da"
             },
             "us-west-1": {
-                "AMZNLINUXHVM": "ami-04bc3da8f14823e88"
+                "AMZNLINUXHVM": "ami-021bb9f371690f97a"
             },
             "us-west-2": {
-                "AMZNLINUXHVM": "ami-01460aa81365561fe"
+                "AMZNLINUXHVM": "ami-079f731edfe27c29c"
             }
+        }
+    },
+    "Conditions": {
+        "UsingDefaultBucket": {
+            "Fn::Equals": [
+                {
+                    "Ref": "QSS3BucketName"
+                },
+                "aws-quickstart"
+            ]
         }
     },
     "Resources": {
@@ -402,9 +421,26 @@
                                     "Action": [
                                         "s3:GetObject"
                                     ],
-                                    "Resource": {
-                                        "Fn::Sub": "arn:aws:s3:::${QSS3BucketName}/${QSS3KeyPrefix}*"
-                                    },
+                                    "Resource": [
+                                        {
+                                            "Fn::Sub": [
+                                                "arn:${AWS::Partition}:s3:::${S3Bucket}/${QSS3KeyPrefix}*",
+                                                {
+                                                    "S3Bucket": {
+                                                        "Fn::If": [
+                                                            "UsingDefaultBucket",
+                                                            {
+                                                                "Fn::Sub": "${QSS3BucketName}-${AWS::Region}"
+                                                            },
+                                                            {
+                                                                "Ref": "QSS3BucketName"
+                                                            }
+                                                        ]
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    ],
                                     "Effect": "Allow"
                                 }
                             ]
@@ -431,28 +467,10 @@
                                     ],
                                     "Resource": [
                                         {
-                                            "Fn::Join": [
-                                                "",
-                                                [
-                                                    "arn:aws:s3:::",
-                                                    {
-                                                        "Ref": "S3Bucket"
-                                                    },
-                                                    ""
-                                                ]
-                                            ]
+                                            "Fn::Sub": "arn:aws:s3:::${S3Bucket}"
                                         },
                                         {
-                                            "Fn::Join": [
-                                                "",
-                                                [
-                                                    "arn:aws:s3:::",
-                                                    {
-                                                        "Ref": "S3Bucket"
-                                                    },
-                                                    "/*"
-                                                ]
-                                            ]
+                                            "Fn::Sub": "arn:aws:s3:::${S3Bucket}/*"
                                         }
                                     ]
                                 }
@@ -551,41 +569,7 @@
                 ],
                 "UserData": {
                     "Fn::Base64": {
-                        "Fn::Join": [
-                            "",
-                            [
-                                "#!/bin/bash\n",
-                                "export PATH=$PATH:/usr/local/bin\n",
-                                "which pip &> /dev/null\n",
-                                "if [ $? -ne 0 ] ; then\n",
-                                "    echo \"PIP NOT INSTALLED\"\n",
-                                "    [ `which yum` ] && $(yum install -y epel-release; yum install -y python-pip) && echo \"PIP INSTALLED\"\n",
-                                "    [ `which apt-get` ] && apt-get -y update && apt-get -y install python-pip && echo \"PIP INSTALLED\"\n",
-                                "fi\n",
-                                "pip install --upgrade pip &> /dev/null\n",
-                                "pip install awscli --ignore-installed six &> /dev/null\n",
-                                "easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz\n",
-                                "cfn-init --stack ",
-                                {
-                                    "Ref": "AWS::StackName"
-                                },
-                                " --resource WorkloadASLaunchConfig --configsets quickstart --region ",
-                                {
-                                    "Ref": "AWS::Region"
-                                },
-                                "\n",
-                                "# Signal the status from cfn-init\n",
-                                "cfn-signal -e $? --stack ",
-                                {
-                                    "Ref": "AWS::StackName"
-                                },
-                                " --resource WorkloadAutoScalingGroup --region ",
-                                {
-                                    "Ref": "AWS::Region"
-                                },
-                                "\n"
-                            ]
-                        ]
+                        "Fn::Sub": "#!/bin/bash\nexport PATH=$PATH:/usr/local/bin\nwhich pip &> /dev/null\nif [ $? -ne 0 ] ; then\n    echo \"PIP NOT INSTALLED\"\n    [ `which yum` ] && $(yum install -y epel-release; yum install -y python-pip) && echo \"PIP INSTALLED\"\n    [ `which apt-get` ] && apt-get -y update && apt-get -y install python-pip && echo \"PIP INSTALLED\"\nfi\npip install --upgrade pip &> /dev/null\npip install awscli --ignore-installed six &> /dev/null\neasy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz\ncfn-init --stack ${AWS::StackName} --resource WorkloadASLaunchConfig --configsets quickstart --region ${AWS::Region}\n# Signal the status from cfn-init\ncfn-signal -e $? --stack ${AWS::StackName} --resource WorkloadAutoScalingGroup --region ${AWS::Region}\n"
                     }
                 }
             }
