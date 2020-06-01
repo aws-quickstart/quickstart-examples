@@ -62,6 +62,8 @@ Metadata:
         default: Public subnet 2 CIDR
       QSS3BucketName:
         default: Quick Start S3 bucket name
+      QSS3BucketRegion:
+        default: Quick Start S3 bucket region
       QSS3KeyPrefix:
         default: Quick Start S3 Key Prefix
       S3BucketName:
@@ -270,8 +272,7 @@ Resources:
           Ref: QSS3BucketName
         QSS3BucketRegion: 
           Ref: QSS3BucketRegion
-        QSS3KeyPrefix:
-          Sub: ${QSS3KeyPrefix}submodules/quickstart-linux-bastion/
+        QSS3KeyPrefix: !Sub '${QSS3KeyPrefix}submodules/quickstart-linux-bastion/'
         BastionAMIOS:
           Ref: BastionAMIOS
         BastionInstanceType:

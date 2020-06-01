@@ -35,7 +35,7 @@
                     },
                     "Parameters": [
                         "WorkloadNodesMinSize",
-                        "NodesMaxSize",
+                        "WorkloadNodesMaxSize",
                         "OperatorEmail"
                     ]
                 },
@@ -104,7 +104,7 @@
                 "WorkloadInstanceType": {
                     "default": "Workload servers instance type"
                 },
-                "WorkloadoNodesDesiredCapacity": {
+                "WorkloadNodesDesiredCapacity": {
                     "default": "Workload nodes desired capacity"
                 },
                 "WorkloadNodesMaxSize": {
@@ -388,7 +388,7 @@
                         "Ref": "QSS3BucketRegion"
                     },
                     "QSS3KeyPrefix": {
-                        "Sub": "${QSS3KeyPrefix}submodules/quickstart-linux-bastion/"
+                        "Fn::Sub": "${QSS3KeyPrefix}submodules/quickstart-linux-bastion/"
                     },
                     "BastionAMIOS": {
                         "Ref": "BastionAMIOS"
