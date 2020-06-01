@@ -62,5 +62,13 @@
     {
         "ParameterKey": "WorkloadNodesMinSize",
         "ParameterValue": "2"
+    },
+    {
+        "ParameterKey": "QSS3BucketName",
+        "ParameterValue": "$[taskcat_autobucket]"
+    },
+    {
+        "ParameterKey": "QSS3BucketRegion",
+        "ParameterValue": "$[taskcat_current_region]"
     }
 ]
