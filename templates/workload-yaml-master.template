@@ -347,4 +347,3 @@ Resources:
           Fn::GetAtt:
           - VPCStack
           - Outputs.VPCID
-...
