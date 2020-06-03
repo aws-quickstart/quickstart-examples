@@ -138,7 +138,11 @@ Resources:
               delete_at_time = datetime.now() + timedelta(minutes=int(ttl))
               hh = delete_at_time.hour
               mm = delete_at_time.minute
-              cron_exp = "cron({} {} * * ? *)".format(mm, hh)
+              yyyy = delete_at_time.year
+              month = delete_at_time.month
+              dd = delete_at_time.day
+              # minutes hours day month day-of-week year
+              cron_exp = "cron({} {} {} {} ? {})".format(mm, hh, dd, month, yyyy)
               return cron_exp
           
           def handler(event, context):
