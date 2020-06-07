@@ -54,7 +54,7 @@ Parameters:
     NoEcho: 'true'
     Type: String
    KubeClusterName:
-    Description: 'Get this from the EKSStack outputs section in CloudFormation.'
+    Description: 'Use the "EKSClusterName" from the EKSStack outputs section in CloudFormation.'
     Type: String
    KubeGetLambdaArn:
      Description: 'Get this from the EKSStack outputs section in CloudFormation.'
