@@ -2,4 +2,4 @@
 
 Provides a custom resource that takes a template url, parameters, role ARN and region and launches a stack using the given role/region. 
 
-For a walkthrough on it's usage see [this article](https://link-to-come/) 
+For a walkthrough on it's usage see [this article](https://aws.amazon.com/blogs/infrastructure-and-automation/multiple-account-multiple-region-aws-cloudformation/) 
