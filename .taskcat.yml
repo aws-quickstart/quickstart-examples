@@ -1,0 +1,48 @@
+project:
+  name: quickstart-examples
+  owner: quickstart-eng@amazon.com
+  package_lambda: false
+  shorten_stack_name: true
+  s3_regional_buckets: true
+  regions:
+  - ap-northeast-1
+  - ap-northeast-2
+  - ap-south-1
+  - ap-southeast-1
+  - ap-southeast-2
+  - ca-central-1
+  - eu-central-1
+  - eu-west-1
+  - eu-west-2
+  - sa-east-1
+  - us-east-1
+  - us-east-2
+  - us-west-1
+  - us-west-2
+  s3_bucket: ''
+tests:
+  examples-main:
+    parameters:
+      AvailabilityZones: $[alfred_getaz_2]
+      BastionAMIOS: Amazon-Linux2-HVM
+      BastionInstanceType: t2.micro
+      KeyPairName: $[alfred_getkeypair]
+      OperatorEmail: operator@example.com
+      PrivateSubnet1CIDR: 10.0.0.0/19
+      PrivateSubnet2CIDR: 10.0.32.0/19
+      PublicSubnet1CIDR: 10.0.128.0/20
+      PublicSubnet2CIDR: 10.0.144.0/20
+      QSS3BucketName: $[taskcat_autobucket]
+      QSS3BucketRegion: $[taskcat_current_region]
+      RemoteAccessCIDR: 10.0.0.0/16
+      S3BucketName: alfred-develop-examples-$[alfred_genuuid]
+      VPCCIDR: 10.0.0.0/16
+      WorkloadInstanceType: m4.xlarge
+      WorkloadNodesDesiredCapacity: '2'
+      WorkloadNodesMaxSize: '4'
+      WorkloadNodesMinSize: '2'
+    regions:
+    - eu-west-1
+    - eu-central-1
+    s3_bucket: ''
+    template: templates/workload-yaml-entrypoint-new-vpc.template.yaml
