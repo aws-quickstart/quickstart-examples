@@ -52,7 +52,7 @@ Resources:
     Properties:
       Description: Copies objects from a source S3 bucket to a destination
       Handler: index.handler
-      Runtime: python2.7
+      Runtime: python3.7
       Role: !GetAtt 'CopyZipsRole.Arn'
       Timeout: 240
       Code:
@@ -73,9 +73,9 @@ Resources:
             - '            ''Bucket'': source_bucket,'
             - '            ''Key'': key'
             - '        }'
-            - '        print(''copy_source: %s'' % copy_source)'
-            - '        print(''dest_bucket = %s''%dest_bucket)'
-            - '        print(''key = %s'' %key)'
+            - '        print((''copy_source: %s'' % copy_source))'
+            - '        print((''dest_bucket = %s''%dest_bucket))'
+            - '        print((''key = %s'' %key))'
             - '        s3.copy_object(CopySource=copy_source, Bucket=dest_bucket,
               Key=key)'
             - ''
@@ -99,7 +99,7 @@ Resources:
               / 1000.00) - 0.5, timeout, args=[event, context])'
             - '    timer.start()'
             - ''
-            - '    print(''Received event: %s'' % json.dumps(event))'
+            - '    print((''Received event: %s'' % json.dumps(event)))'
             - '    status = cfnresponse.SUCCESS'
             - '    try:'
             - '        source_bucket = event[''ResourceProperties''][''SourceBucket'']'
@@ -283,7 +283,7 @@ Resources:
         S3Bucket: !Ref LambdaZipsBucket
         S3Key: !Sub "quickstart-examples/samples/cloudformation-codebuild-container/${LambdaCodePath}"
       Handler: "lambda_codebuild.lambda_handler"
-      Runtime: python2.7
+      Runtime: python3.7
       Timeout: 300
       Role: !GetAtt CodeBuildLambdaExecutionRole.Arn
   CodeBuildLambdaExecutionRole:

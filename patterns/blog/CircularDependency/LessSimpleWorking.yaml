@@ -9,7 +9,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: s3://bucketname/object.zip # Add in an S3 URI where you have code Lambda Code
-      Runtime: python2.7
+      Runtime: python3.7
       Handler: index.handler
       Policies:
         - Version: 2012-10-17

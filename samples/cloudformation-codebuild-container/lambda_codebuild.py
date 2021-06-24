@@ -1,6 +1,6 @@
 """This AWS Lambda Function kicks off a code build job."""
-import httplib
-import urlparse
+import http.client
+import urllib.parse
 import json
 import boto3
 import traceback
@@ -12,7 +12,7 @@ def lambda_handler(event, context):
 
     try:
         # Log the received event
-        print("Received event: " + json.dumps(event, indent=2))
+        print(("Received event: " + json.dumps(event, indent=2)))
 
         # Setup base response
         response = get_response_dict(event)
@@ -24,7 +24,7 @@ def lambda_handler(event, context):
                 execute_build(event)
             except Exception as build_exce:
                 print("ERROR: Build threw exception")
-                print(repr(build_exce))
+                print((repr(build_exce)))
                 # Signal back that we failed
                 return send_response(event, get_response_dict(event),
                                      "FAILED", repr(build_exce))
@@ -42,11 +42,11 @@ def lambda_handler(event, context):
                 cleanup_images_repo(repository, account_id)
             except Exception as cleanup_exception:
                 # signal failure to CFN
-                print(json.dumps(event, indent=2))
+                print((json.dumps(event, indent=2)))
                 traceback.print_stack()
                 print("---------")
                 traceback.print_exc()
-                print(repr(cleanup_exception))
+                print((repr(cleanup_exception)))
                 return send_response(event, response, "FAILED",
                                      "Cleanup of Container image failed." + repr(cleanup_exception))
             # signal success to CFN
@@ -67,7 +67,7 @@ def cleanup_images_repo(repository, account_id):
     """
     ecr_client = boto3.client('ecr')
 
-    print("Repo:" + repository + " AccountID:" + account_id)
+    print(("Repo:" + repository + " AccountID:" + account_id))
     response = ecr_client.describe_images(
         registryId=account_id,
         repositoryName=repository
@@ -97,7 +97,7 @@ def execute_build(event):
     stack_id = event["StackId"]
     request_id = event["RequestId"]
     logical_resource_id = event["LogicalResourceId"]
-    url = urlparse.urlparse(event['ResponseURL'])
+    url = urllib.parse.urlparse(event['ResponseURL'])
     response = build.start_build(
         projectName=project_name, environmentVariablesOverride=[
             {'name': 'url_path', 'value': url.path},
@@ -130,9 +130,9 @@ def send_response(event, response, status=None, reason=None):
         response['Reason'] = reason
 
     if 'ResponseURL' in event and event['ResponseURL']:
-        url = urlparse.urlparse(event['ResponseURL'])
+        url = urllib.parse.urlparse(event['ResponseURL'])
         body = json.dumps(response)
-        https = httplib.HTTPSConnection(url.hostname)
+        https = http.client.HTTPSConnection(url.hostname)
         https.request('PUT', url.path+'?'+url.query, body)
         print("Sent CFN Response")
 
