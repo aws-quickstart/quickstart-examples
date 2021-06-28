@@ -3,8 +3,15 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: This workload template deploys an ASG behind an ELB load balancer in
   two private subnets. The cluster is configured to use an S3 bucket for storage **WARNING**
   This template creates EC2 instances and related resources. You will be billed for
-  the AWS resources used if you create a stack from this template.
+  the AWS resources used if you create a stack from this template. (qs-1s1eguak1)
 Metadata:
+  cfn-lint:
+    config:
+      ignore_checks:
+        - W9006 # temporary to get rid of warnings
+        - W9002 # temporary to get rid of warnings
+        - W9003 # temporary to get rid of warnings
+        - W9901 # Not passing all the default parameters to reduce verbosity
   AWS::CloudFormation::Interface:
     ParameterGroups:
     - Label:
@@ -36,7 +43,6 @@ Metadata:
         default: AWS Quick Start configuration
       Parameters:
       - QSS3BucketName
-      - QSS3BucketRegion
       - QSS3KeyPrefix
     ParameterLabels:
       BastionSecurityGroupID:
@@ -55,8 +61,6 @@ Metadata:
         default: Public subnet 2 ID
       QSS3BucketName:
         default: Quick Start S3 bucket name
-      QSS3BucketRegion:
-        default: Quick Start S3 bucket region
       QSS3KeyPrefix:
         default: Quick Start S3 key prefix
       S3BucketName:
@@ -111,10 +115,6 @@ Parameters:
     Description: S3 bucket name for the Quick Start assets. This string can include
       numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start
       or end with a hyphen (-).
-    Type: String
-  QSS3BucketRegion:
-    Default: 'us-east-1'
-    Description: 'The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value.'
     Type: String
   QSS3KeyPrefix:
     AllowedPattern: ^[0-9a-zA-Z-/]*$
@@ -242,12 +242,12 @@ Resources:
         Ref: VPCID
       SecurityGroupIngress:
       - IpProtocol: tcp
-        FromPort: '80'
-        ToPort: '80'
+        FromPort: 80
+        ToPort: 80
         CidrIp: 0.0.0.0/0
       - IpProtocol: tcp
-        FromPort: '443'
-        ToPort: '443'
+        FromPort: 443
+        ToPort: 443
         CidrIp: 0.0.0.0/0
   ElasticLoadBalancer:
     Type: AWS::ElasticLoadBalancing::LoadBalancer
@@ -266,7 +266,7 @@ Resources:
         Protocol: HTTP
         PolicyNames:
         - WorkloadCookieStickinessPolicy
-      CrossZone: 'true'
+      CrossZone: true
       HealthCheck:
         Target: TCP:80
         HealthyThreshold: '2'
@@ -306,15 +306,18 @@ Resources:
           - Effect: Allow
             Action:
             - cloudwatch:PutMetricData
-            - cloudwatch:EnableAlarmActions
-            - cloudwatch:PutMetricAlarm
             Resource: '*'
           - Effect: Allow
             Action:
-            - s3:*
+            - cloudwatch:EnableAlarmActions
+            - cloudwatch:PutMetricAlarm
             Resource:
-            - Fn::Sub: arn:aws:s3:::${S3Bucket}
-            - Fn::Sub: arn:aws:s3:::${S3Bucket}/*
+            - !Sub arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:*
+          - Effect: Allow
+            Action: ["s3:PutLifecycleConfiguration", "s3:AbortMultipartUpload", "s3:DeleteObjectTagging", "s3:DeleteAccessPoint", "s3:GetAccessPoint", "s3:GetAccessPointPolicyStatus", "s3:GetAccessPointPolicyStatusForObjectLambda", "s3:PutMetricsConfiguration", "s3:GetAccessPointConfigurationForObjectLambda", "s3:BypassGovernanceRetention", "s3:PutBucketLogging", "s3:ListAllMyBuckets", "s3:ListBucket", "s3:ListBucketMultipartUploads", "s3:GetObjectVersionTagging", "s3:PutEncryptionConfiguration", "s3:GetBucketTagging", "s3:GetAccelerateConfiguration", "s3:PutIntelligentTieringConfiguration", "s3:GetBucketPolicy", "s3:PutJobTagging", "s3:PutBucketCORS", "s3:GetReplicationConfiguration", "s3:DeleteAccessPointForObjectLambda", "s3:GetStorageLensDashboard", "s3:ListJobs", "s3:GetMetricsConfiguration", "s3:PutAccelerateConfiguration", "s3:PutStorageLensConfigurationTagging", "s3:PutAccessPointConfigurationForObjectLambda", "s3:GetBucketObjectLockConfiguration", "s3:GetInventoryConfiguration", "s3:PutBucketWebsite", "s3:PutAnalyticsConfiguration", "s3:GetIntelligentTieringConfiguration", "s3:GetLifecycleConfiguration", "s3:ListStorageLensConfigurations", "s3:DeleteObjectVersion", "s3:GetBucketPublicAccessBlock", "s3:DeleteJobTagging", "s3:PutObjectVersionTagging", "s3:GetObjectAcl", "s3:PutBucketObjectLockConfiguration", "s3:CreateAccessPointForObjectLambda", "s3:PutBucketPolicy", "s3:GetBucketLogging", "s3:GetObjectVersionForReplication", "s3:GetObject", "s3:GetBucketLocation", "s3:DeleteAccessPointPolicyForObjectLambda", "s3:DeleteStorageLensConfigurationTagging", "s3:GetBucketPolicyStatus", "s3:RestoreObject", "s3:GetBucketOwnershipControls", "s3:PutStorageLensConfiguration", "s3:DeleteBucketWebsite", "s3:PutInventoryConfiguration", "s3:ListAccessPoints", "s3:ListMultipartUploadParts", "s3:GetObjectVersion", "s3:DeleteBucketOwnershipControls", "s3:GetBucketCORS", "s3:PutObject", "s3:PutBucketNotification", "s3:PutObjectTagging", "s3:GetEncryptionConfiguration", "s3:GetStorageLensConfiguration", "s3:GetObjectVersionTorrent", "s3:PutAccessPointPolicyForObjectLambda", "s3:PutObjectRetention", "s3:PutBucketPublicAccessBlock", "s3:PutBucketVersioning", "s3:GetAccountPublicAccessBlock", "s3:GetBucketNotification", "s3:GetBucketVersioning", "s3:DeleteStorageLensConfiguration", "s3:GetObjectVersionAcl", "s3:ReplicateTags", "s3:UpdateJobStatus", "s3:DeleteAccessPointPolicy", "s3:GetBucketAcl", "s3:GetObjectLegalHold", "s3:GetAnalyticsConfiguration", "s3:GetObjectRetention", "s3:DeleteBucketPolicy", "s3:PutObjectVersionAcl", "s3:PutAccountPublicAccessBlock", "s3:PutReplicationConfiguration", "s3:DescribeJob", "s3:GetAccessPointForObjectLambda", "s3:CreateAccessPoint", "s3:PutAccessPointPolicy", "s3:GetObjectTorrent", "s3:ListAccessPointsForObjectLambda", "s3:GetBucketRequestPayment", "s3:CreateJob", "s3:GetBucketWebsite", "s3:PutObjectAcl", "s3:PutBucketAcl", "s3:ListBucketVersions", "s3:GetJobTagging", "s3:PutBucketTagging", "s3:PutBucketRequestPayment", "s3:ReplicateDelete", "s3:DeleteObjectVersionTagging", "s3:UpdateJobPriority", "s3:PutBucketOwnershipControls", "s3:DeleteObject", "s3:DeleteBucket", "s3:ObjectOwnerOverrideToBucketOwner", "s3:PutObjectLegalHold", "s3:GetStorageLensConfigurationTagging", "s3:GetAccessPointPolicyForObjectLambda", "s3:GetObjectTagging", "s3:CreateBucket", "s3:ReplicateObject", "s3:GetAccessPointPolicy"]
+            Resource:
+            - Fn::Sub: arn:${AWS::Partition}:s3:::${S3Bucket}
+            - Fn::Sub: arn:${AWS::Partition}:s3:::${S3Bucket}/*
   SetupRoleProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
@@ -329,18 +332,18 @@ Resources:
         Ref: VPCID
       SecurityGroupIngress:
       - IpProtocol: tcp
-        FromPort: '80'
-        ToPort: '80'
+        FromPort: 80
+        ToPort: 80
         SourceSecurityGroupId:
           Ref: ELBSecurityGroup
       - IpProtocol: tcp
-        FromPort: '443'
-        ToPort: '443'
+        FromPort: 443
+        ToPort: 443
         SourceSecurityGroupId:
           Ref: ELBSecurityGroup
       - IpProtocol: tcp
-        FromPort: '22'
-        ToPort: '22'
+        FromPort: 22
+        ToPort: 22
         SourceSecurityGroupId:
           Ref: BastionSecurityGroupID
   WorkloadASLaunchConfig:
@@ -363,7 +366,7 @@ Resources:
         - AWSAMIRegionMap
         - Ref: AWS::Region
         - AMZNLINUXHVM
-      InstanceMonitoring: 'true'
+      InstanceMonitoring: true
       IamInstanceProfile:
         Ref: SetupRoleProfile
       InstanceType:
@@ -394,7 +397,7 @@ Resources:
       AutoScalingGroupName:
         Ref: WorkloadAutoScalingGroup
       Cooldown: '300'
-      ScalingAdjustment: '1'
+      ScalingAdjustment: 1
   WorkloadScaleDownPolicy:
     Type: AWS::AutoScaling::ScalingPolicy
     Properties:
@@ -402,7 +405,7 @@ Resources:
       AutoScalingGroupName:
         Ref: WorkloadAutoScalingGroup
       Cooldown: '300'
-      ScalingAdjustment: '-1'
+      ScalingAdjustment: -1
   CPUAlarmHigh:
     Type: AWS::CloudWatch::Alarm
     Properties:
@@ -410,9 +413,9 @@ Resources:
       MetricName: CPUUtilization
       Namespace: AWS/EC2
       Statistic: Average
-      Period: '60'
-      EvaluationPeriods: '5'
-      Threshold: '60'
+      Period: 60
+      EvaluationPeriods: 5
+      Threshold: 60
       AlarmActions:
       - Ref: WorkloadScaleUpPolicy
       Dimensions:
@@ -427,9 +430,9 @@ Resources:
       MetricName: CPUUtilization
       Namespace: AWS/EC2
       Statistic: Average
-      Period: '60'
-      EvaluationPeriods: '30'
-      Threshold: '40'
+      Period: 60
+      EvaluationPeriods: 30
+      Threshold: 40
       AlarmActions:
       - Ref: WorkloadScaleDownPolicy
       Dimensions:
@@ -446,7 +449,7 @@ Resources:
       Cooldown: '600'
       DesiredCapacity:
         Ref: WorkloadNodesDesiredCapacity
-      HealthCheckGracePeriod: '600'
+      HealthCheckGracePeriod: 600
       HealthCheckType: EC2
       LaunchConfigurationName:
         Ref: WorkloadASLaunchConfig
@@ -456,19 +459,20 @@ Resources:
         Ref: WorkloadNodesMaxSize
       MinSize:
         Ref: WorkloadNodesMinSize
-      NotificationConfiguration:
-        TopicARN:
-          Ref: NotificationTopic
-        NotificationTypes:
-        - autoscaling:EC2_INSTANCE_LAUNCH
-        - autoscaling:EC2_INSTANCE_LAUNCH_ERROR
-        - autoscaling:EC2_INSTANCE_TERMINATE
-        - autoscaling:EC2_INSTANCE_TERMINATE_ERROR
-        - autoscaling:TEST_NOTIFICATION
+      NotificationConfigurations:
+        -
+          TopicARN:
+            Ref: NotificationTopic
+          NotificationTypes:
+          - autoscaling:EC2_INSTANCE_LAUNCH
+          - autoscaling:EC2_INSTANCE_LAUNCH_ERROR
+          - autoscaling:EC2_INSTANCE_TERMINATE
+          - autoscaling:EC2_INSTANCE_TERMINATE_ERROR
+          - autoscaling:TEST_NOTIFICATION
       Tags:
       - Key: Name
         Value: Workload Server cluster node
-        PropagateAtLaunch: 'true'
+        PropagateAtLaunch: true
     CreationPolicy:
       ResourceSignal:
         Count:

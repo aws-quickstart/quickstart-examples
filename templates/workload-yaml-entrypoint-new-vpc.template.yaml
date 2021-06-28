@@ -1,11 +1,18 @@
 ---
 AWSTemplateFormatVersion: '2010-09-09'
-Description: This master template creates a VPC infrastructure for a multi-AZ, multi-tier
+Description: This example template creates a VPC infrastructure for a multi-AZ, multi-tier
   deployment of a workload on AWS. It deploys a VPC with bastions and a workload cluster
   behind an ELB. The cluster is configured to use an S3 bucket for storage  **WARNING**
   This template creates EC2 instances and related resources. You will be billed for
-  the AWS resources used if you create a stack from this template.
+  the AWS resources used if you create a stack from this template. (qs-1s1eguahh)
 Metadata:
+  cfn-lint:
+    config:
+      ignore_checks:
+        - W9006 # temporary to get rid of warnings
+        - W9002 # temporary to get rid of warnings
+        - W9003 # temporary to get rid of warnings
+        - W9901 # Not passing all the default parameters to reduce verbosity
   AWS::CloudFormation::Interface:
     ParameterGroups:
     - Label:
@@ -29,7 +36,7 @@ Metadata:
         default: Workload nodes configuration
       Parameters:
       - WorkloadNodesMinSize
-      - NodesMaxSize
+      - WorkloadNodesMaxSize
       - OperatorEmail
     - Label:
         default: Workload storage configuration
@@ -74,8 +81,6 @@ Metadata:
         default: VPC CIDR
       WorkloadInstanceType:
         default: Workload servers instance type
-      WorkloadoNodesDesiredCapacity:
-        default: Workload nodes desired capacity
       WorkloadNodesMaxSize:
         default: Workload nodes max size
       WorkloadNodesMinSize:
@@ -237,7 +242,7 @@ Resources:
     Properties:
       TemplateURL:
         !Sub
-          - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}submodules/quickstart-aws-vpc/templates/aws-vpc.template'
+          - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}submodules/quickstart-aws-vpc/templates/aws-vpc.template.yaml'
           - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
             S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
@@ -245,8 +250,6 @@ Resources:
           Fn::Join:
           - ','
           - Ref: AvailabilityZones
-        KeyPairName:
-          Ref: KeyPairName
         NumberOfAZs: '2'
         PrivateSubnet1ACIDR:
           Ref: PrivateSubnet1CIDR
@@ -259,7 +262,6 @@ Resources:
         VPCCIDR:
           Ref: VPCCIDR
   BastionStack:
-    DependsOn: VPCStack
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL:
@@ -294,12 +296,11 @@ Resources:
           - VPCStack
           - Outputs.VPCID
   WorkloadStack:
-    DependsOn: BastionStack
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL:
         !Sub
-          - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/workload-yaml.template'
+          - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/workload-yaml.template.yaml'
           - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
             S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
@@ -337,8 +338,6 @@ Resources:
           - Outputs.PublicSubnet2ID
         QSS3BucketName:
           Ref: QSS3BucketName
-        QSS3BucketRegion: 
-          Ref: QSS3BucketRegion
         QSS3KeyPrefix:
           Ref: QSS3KeyPrefix
         S3BucketName:
