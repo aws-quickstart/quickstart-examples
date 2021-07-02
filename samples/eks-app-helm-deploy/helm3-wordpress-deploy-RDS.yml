@@ -13,9 +13,7 @@ Metadata:
       - Label:
           default: Kube Cluster
         Parameters:
-          - KubeClusterName
-          - KubeGetLambdaArn
-          - KubeConfigKmsContext
+          - ClusterName
           - Namespace
           - Name
       - Label:
@@ -34,12 +32,8 @@ Metadata:
         default: Wordpress Username
       wordpressPassword:
         default: Wordpress Password
-      KubeClusterName:
+      ClusterName:
         default: EKS Kube Cluster Name
-      KubeGetLambdaArn:
-        default: Kube Get Lambda ARN
-      KubeConfigKmsContext:
-        default: Kube KMS Context
       Namespace:
         default: Kube Namespace for this function
       Name:
@@ -61,7 +55,7 @@ Metadata:
       BastionSecurityGroupId:
         default: Bastion SecurityGroup ID
 Parameters:
-   wordpressUsername:
+  wordpressUsername:
     AllowedPattern: ^[a-z][a-z0-9_]*$
     ConstraintDescription: User name parameter must be lowercase, begin with a letter,
       contain only alphanumeric characters or underscores, and be less than 60 characters.
@@ -72,7 +66,7 @@ Parameters:
     MaxLength: '60'
     MinLength: '1'
     Type: String
-   wordpressPassword:
+  wordpressPassword:
     Description: 'The password that is associated with the master user account for
       Wordpress. The password must contain 8 to 64 printable ASCII
       characters, excluding: /, ", \'', \ and @. It must contain one uppercase letter,
@@ -80,30 +74,22 @@ Parameters:
     MaxLength: '64'
     NoEcho: 'true'
     Type: String
-   KubeClusterName:
+  ClusterName:
     Description: 'Use the "EKSClusterName" from the EKSStack outputs section in CloudFormation.'
     Type: String
-   KubeGetLambdaArn:
-    Description: 'Get this from the EKSStack outputs section in CloudFormation.'
-    Type: String
-   KubeConfigKmsContext:
-    Description: 'This is using the default from the AWS EKS Quick Start, if you modified
-    this context when deploying. You need to use the modified KMS context here.'
-    Type: String
-    Default: "EKSQuickStart"
-   Namespace:
+  Namespace:
     Description: 'Modify to use a custom Namespace. The Namespace up to 63 characters
     long. The characters allowed in names are: digits (0-9), lower case letters (a-z),
     and underscore(s)(cannot start or end with)'
     Type: String
     Default: "example-helm-rds"
-   Name:
+  Name:
     Description: 'Modify to use a custom Names. The Names up to 253 characters
     long. The characters allowed in names are: digits (0-9), lower case letters (a-z), -,
     and ..'
     Type: String
     Default: "myrelease-rds"
-   DBMasterUsername:
+  DBMasterUsername:
     AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
     ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
     Default: mariadb
@@ -112,7 +98,7 @@ Parameters:
     MinLength: '1'
     NoEcho: 'true'
     Type: String
-   DBMasterUserPassword:
+  DBMasterUserPassword:
     AllowedPattern: '(?=^.{6,255}$)((?=.*\\d)(?=.*[A-Z])(?=.*[a-z])|(?=.*\\d)(?=.*[^A-Za-z0-9])(?=.*[a-z])|(?=.*[^A-Za-z0-9])(?=.*[A-Z])(?=.*[a-z])|(?=.*\\d)(?=.*[A-Z])(?=.*[^A-Za-z0-9]))^.*'
     ConstraintDescription: "Min 8 chars. Must include 1 uppercase, 1 lowercase, 1 number, 1 (non / @ \" ') symbol"
     Description: "Password for the master ('mariadb') account. Password must meeting the following: Min 8 chars. Must include 1 uppercase, 1 lowercase, 1 number, 1 (non / @ \" ') symbol."
@@ -120,7 +106,7 @@ Parameters:
     MaxLength: 128
     NoEcho: true
     Type: String
-   DBName:
+  DBName:
     AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
     ConstraintDescription: must begin with a letter and contain only alphanumeric characters. Cannot be longer than 64 charcters.
     Default: wordpress
@@ -128,19 +114,19 @@ Parameters:
     MaxLength: '64'
     MinLength: '1'
     Type: String
-   Subnet1ID:
+  Subnet1ID:
     Description: 'Get Private Subnet 1 ID from the VPCStack outputs section in CloudFormation.'
     Type: AWS::EC2::Subnet::Id
-   Subnet2ID:
+  Subnet2ID:
     Description: 'Get Private Subnet 2 ID from the VPCStack outputs section in CloudFormation.'
     Type: AWS::EC2::Subnet::Id
-   NodeGroupSecurityGroupId:
+  NodeGroupSecurityGroupId:
     Description: 'Get NodeGroupSecurityGroupId from the EKSStack outputs section in CloudFormation.'
     Type: String
-   BastionSecurityGroupId:
+  BastionSecurityGroupId:
     Description: 'Get BastionSecurityGroupId from the EKSStack outputs section in CloudFormation.'
     Type: String
-   VPCID:
+  VPCID:
     Type: AWS::EC2::VPC::Id
     Description: 'Get VCP ID from the VPCStack outputs section in CloudFormation.'
 
@@ -199,8 +185,7 @@ Resources:
   HelmExample:
     Type: "AWSQS::Kubernetes::Helm"
     Properties:
-      ClusterID: !Ref KubeClusterName
-      KubeConfigKmsContext: !Ref KubeConfigKmsContext
+      ClusterID: !Ref ClusterName
       Namespace: !Ref Namespace
       Chart: stable/wordpress
       Name: !Ref Name
@@ -218,9 +203,8 @@ Resources:
     Type: "Custom::KubeGet"
     Version: '1.0'
     Properties:
-      ServiceToken: !Ref KubeGetLambdaArn
-      ClusterName: !Ref KubeClusterName
-      KubeConfigKmsContext: !Ref KubeConfigKmsContext
+      ServiceToken: !Sub "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:EKS-QuickStart-KubeGet-${ClusterName}"
+      ClusterName: !Ref ClusterName
       Namespace: !Ref Namespace
       Name: !Sub 'service/${Name}-wordpress'
       JsonPath: '{.status.loadBalancer.ingress[0].hostname}'
@@ -228,3 +212,5 @@ Resources:
 Outputs:
   WPElbHostName:
     Value: !Ref WPElbHostName
+  RDSDBEndpoint:
+    Value: !GetAtt WPDB.Endpoint.Address
