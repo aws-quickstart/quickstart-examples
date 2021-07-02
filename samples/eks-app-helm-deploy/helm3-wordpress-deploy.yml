@@ -13,8 +13,7 @@ Metadata:
       - Label:
           default: Kube Cluster
         Parameters:
-          - KubeClusterName
-          - KubeGetLambdaArn
+          - ClusterName
           - KubeConfigKmsContext
           - Namespace
           - Name
@@ -23,10 +22,8 @@ Metadata:
         default: Wordpress Username
       wordpressPassword:
         default: Wordpress Password
-      KubeClusterName:
+      ClusterName:
         default: EKS Kube Cluster Name
-      KubeGetLambdaArn:
-        default: Kube Get Lambda ARN
       KubeConfigKmsContext:
         default: Kube KMS Context
       Namespace:
@@ -53,12 +50,9 @@ Parameters:
     MaxLength: '64'
     NoEcho: 'true'
     Type: String
-   KubeClusterName:
+   ClusterName:
     Description: 'Use the "EKSClusterName" from the EKSStack outputs section in CloudFormation.'
     Type: String
-   KubeGetLambdaArn:
-     Description: 'Get this from the EKSStack outputs section in CloudFormation.'
-     Type: String
    KubeConfigKmsContext:
     Description: 'This is using the default from the AWS EKS Quick Start, if you modified
     this context when deploying. You need to use the modified KMS context here.'
@@ -80,7 +74,7 @@ Resources:
   HelmExample:
     Type: "AWSQS::Kubernetes::Helm"
     Properties:
-      ClusterID: !Ref KubeClusterName
+      ClusterID: !Ref ClusterName
       KubeConfigKmsContext: !Ref KubeConfigKmsContext
       Namespace: !Ref Namespace
       Chart: stable/wordpress
@@ -93,8 +87,8 @@ Resources:
     Type: "Custom::KubeGet"
     Version: '1.0'
     Properties:
-     ServiceToken: !Ref KubeGetLambdaArn
-     ClusterName: !Ref KubeClusterName
+     ServiceToken: !Sub "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:EKS-QuickStart-KubeGet-${ClusterName}"
+     ClusterName: !Ref ClusterName
      KubeConfigKmsContext: !Ref KubeConfigKmsContext
      Namespace: !Ref Namespace
      Name: !Sub 'service/${Name}-wordpress'
