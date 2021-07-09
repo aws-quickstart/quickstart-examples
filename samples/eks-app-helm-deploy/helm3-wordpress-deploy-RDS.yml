@@ -13,7 +13,7 @@ Metadata:
       - Label:
           default: Kube Cluster
         Parameters:
-          - ClusterName
+          - EKSClusterName
           - Namespace
           - Name
       - Label:
@@ -32,7 +32,7 @@ Metadata:
         default: Wordpress Username
       wordpressPassword:
         default: Wordpress Password
-      ClusterName:
+      EKSClusterName:
         default: EKS Kube Cluster Name
       Namespace:
         default: Kube Namespace for this function
@@ -74,7 +74,7 @@ Parameters:
     MaxLength: '64'
     NoEcho: 'true'
     Type: String
-  ClusterName:
+  EKSClusterName:
     Description: 'Use the "EKSClusterName" from the EKSStack outputs section in CloudFormation.'
     Type: String
   Namespace:
@@ -185,7 +185,7 @@ Resources:
   HelmExample:
     Type: "AWSQS::Kubernetes::Helm"
     Properties:
-      ClusterID: !Ref ClusterName
+      ClusterID: !Ref EKSClusterName
       Namespace: !Ref Namespace
       Chart: stable/wordpress
       Name: !Ref Name
@@ -203,8 +203,8 @@ Resources:
     Type: "Custom::KubeGet"
     Version: '1.0'
     Properties:
-      ServiceToken: !Sub "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:EKS-QuickStart-KubeGet-${ClusterName}"
-      ClusterName: !Ref ClusterName
+      ServiceToken: !Sub "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:EKS-QuickStart-KubeGet-${EKSClusterName}"
+      ClusterName: !Ref EKSClusterName
       Namespace: !Ref Namespace
       Name: !Sub 'service/${Name}-wordpress'
       JsonPath: '{.status.loadBalancer.ingress[0].hostname}'
