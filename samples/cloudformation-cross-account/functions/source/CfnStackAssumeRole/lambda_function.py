@@ -3,7 +3,7 @@ import random
 import string
 import logging
 import threading
-from botocore.vendored import requests
+import requests
 import json
 from botocore.credentials import (
     AssumeRoleCredentialFetcher,
