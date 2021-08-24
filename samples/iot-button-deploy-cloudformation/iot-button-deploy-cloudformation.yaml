@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Deploys an AWS Lambda function that will deploy an input AWS CloudFormation template with a provided parameter file. This Lambda function can be used as an action for the AWS IoT Button to deploy AWS CloudFormation templates.
+Description: Deploys an AWS Lambda function that will deploy an input AWS CloudFormation template with a provided parameter file. This Lambda function can be used as an action for the AWS IoT Button to deploy AWS CloudFormation templates. (qs-1s7dari0g)
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
