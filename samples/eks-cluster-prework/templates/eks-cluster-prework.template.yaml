@@ -31,7 +31,7 @@ Resources:
     Properties:
       TemplateURL: 'https://aws-quickstart.s3.amazonaws.com/quickstart-examples/samples/eks-cluster-prework/templates/prework.template.yaml'
       Parameters:
-	    ClusterName: !Sub "EKSStack.Outputs.EKSClusterName"
+        ClusterName: !Sub "EKSStack.Outputs.EKSClusterName"
         PreworkScriptBucket: "aws-quickstart"
         PreworkScriptObject: "quickstart-examples/samples/eks-cluster-prework/scripts/pw-script.sh"
         JobName: "ExampleJob"
