@@ -1,0 +1,38 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "Amazon EKS PreWork pattern Blog"
+Parameters:
+  AccessCIDR:
+    Default: 0.0.0.0/0
+    Type: String
+  PreworkScriptBucket:
+    Type: String
+    Default: 'aws-quickstart'
+  PreworkScriptObject:
+    Type: String
+    Default: 'quickstart-examples/samples/eks-cluster-prework/script/pw-script.sh'
+Resources:
+  EKSStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'https://aws-quickstart.s3.amazonaws.com/quickstart-amazon-eks/templates/amazon-eks-entrypoint-new-vpc.template.yaml'
+      Parameters:
+        # Quickstart properties
+        QSS3BucketName: aws-quickstart
+        QSS3KeyPrefix: quickstart-amazon-eks/
+        QSS3BucketRegion: us-east-1
+        # Cluster properties
+	ProvisionBastionHost: Enabled
+	AccessCIDR: !Ref AccessCIDR
+        NodeInstanceType: t3.large
+        NumberOfNodes: 1
+        MaxNumberOfNodes: 1
+  PreworkStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'https://aws-quickstart.s3.amazonaws.com/quickstart-examples/samples/eks-cluster-prework/templates/prework.template.yaml'
+      Parameters:
+	ClusterName: !Sub "EKSStack.Outputs.EKSClusterName"
+        PreworkScriptBucket: "aws-quickstart"
+        PreworkScriptObject: "quickstart-examples/samples/eks-cluster-prework/scripts/pw-script.sh"
+        JobName: "ExampleJob"
+        KubernetesNameSpace: "prework-example"
