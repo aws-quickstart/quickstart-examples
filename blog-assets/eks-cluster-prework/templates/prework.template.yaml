@@ -8,7 +8,7 @@ Parameters:
     Default: aws-quickstart
   PreworkScriptObject:
     Type: String
-    Default: "quickstart-examples/samples/eks-cluster-prework/scripts/pw-script.sh"
+    Default: "quickstart-examples/blog-assets/eks-cluster-prework/scripts/pw-script.sh"
   JobName:
     Type: String
     Default: ExampleJob
@@ -52,6 +52,16 @@ Resources:
                   - s3:GetObject
                 Resource:
                   -  !Sub "arn:aws:s3:::${PreworkScriptBucket}/${PreworkScriptObject}"
+  PeworkNameSpace:
+    Type: "AWSQS::Kubernetes::Resource"
+    Properties:
+      ClusterName: !Ref ClusterName
+      Manifest: !Sub |
+        kind: Namespace
+        apiVersion: v1
+        metadata:
+          name: ${KubernetesNameSpace}
+      Namespace: default
   KubernetesRole:
     Type: AWSQS::Kubernetes::Resource
     Properties:

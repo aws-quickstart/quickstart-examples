@@ -12,7 +12,7 @@ Parameters:
     Default: 'aws-quickstart'
   PreworkScriptObject:
     Type: String
-    Default: 'quickstart-examples/samples/eks-cluster-prework/script/pw-script.sh'
+    Default: 'quickstart-examples/blog-assets/eks-cluster-prework/script/pw-script.sh'
 Resources:
   EKSStack:
     Type: AWS::CloudFormation::Stack
@@ -31,10 +31,10 @@ Resources:
   PreworkStack:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: 'https://aws-quickstart.s3.us-east-1.amazonaws.com/quickstart-examples/samples/eks-cluster-prework/templates/prework.template.yaml'
+      TemplateURL: 'https://aws-quickstart.s3.us-east-1.amazonaws.com/quickstart-examples/blog-assets/eks-cluster-prework/templates/prework.template.yaml'
       Parameters:
         ClusterName: !Sub "EKSStack.Outputs.EKSClusterName"
         PreworkScriptBucket: "aws-quickstart"
-        PreworkScriptObject: "quickstart-examples/samples/eks-cluster-prework/scripts/pw-script.sh"
+        PreworkScriptObject: !Ref "PreworkScriptObject"
         JobName: !Ref "PreWorkJobName"
         KubernetesNameSpace: !Ref "PreworkNamespace"
