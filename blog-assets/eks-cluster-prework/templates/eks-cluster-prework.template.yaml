@@ -1,0 +1,40 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "Amazon EKS PreWork pattern Blog"
+Parameters:
+  PreworkJobName:
+    Type: String
+    Default: 'example-job'
+  PreworkNameSpace:
+    Type: String
+    Default: 'example-job-ns'
+  PreworkScriptBucket:
+    Type: String
+    Default: 'aws-quickstart'
+  PreworkScriptObject:
+    Type: String
+    Default: 'quickstart-examples/blog-assets/eks-cluster-prework/script/pw-script.sh'
+Resources:
+  EKSStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'https://aws-quickstart.s3.us-east-1.amazonaws.com/quickstart-amazon-eks/templates/amazon-eks-entrypoint-new-vpc.template.yaml'
+      Parameters:
+        # AWS Quick Start properties
+        QSS3BucketName: aws-quickstart
+        QSS3KeyPrefix: quickstart-amazon-eks/
+        QSS3BucketRegion: us-east-1
+        # Amazon EKS Cluster properties
+        ProvisionBastionHost: Disabled
+        NodeInstanceType: t3.large
+        NumberOfNodes: 1
+        MaxNumberOfNodes: 1
+  PreworkStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'https://aws-quickstart.s3.us-east-1.amazonaws.com/quickstart-examples/blog-assets/eks-cluster-prework/templates/prework.template.yaml'
+      Parameters:
+        ClusterName: !Sub "EKSStack.Outputs.EKSClusterName"
+        PreworkScriptBucket: "aws-quickstart"
+        PreworkScriptObject: !Ref "PreworkScriptObject"
+        JobName: !Ref "PreWorkJobName"
+        KubernetesNameSpace: !Ref "PreworkNamespace"
