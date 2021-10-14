@@ -56,7 +56,7 @@ try:
             if hasattr(p,"AllowedPattern"):
                 m.write("      # AllowedPattern: " + p.AllowedPattern + "\r\n")
             if hasattr(p,"AllowedValues"):
-                m.write("      # AllowedValues: " + ' '.join(p.AllowedValues) + "\r\n")
+                m.write("      # AllowedValues: " + ' '.join(str(v) for v in p.AllowedValues) + "\r\n")
             if hasattr(p,"ConstraintDescription"):
                 m.write("      # ConstraintDescription: " + p.ConstraintDescription + "\r\n")
             if hasattr(p,"MaxLength"):
@@ -73,15 +73,15 @@ try:
                 m.write("      # Type: " + p.Type + "\r\n")
         m.write("      - parameter_key: " + p.name + "\r\n")
         if hasattr(p,"Default"):
-                m.write("        parameter_value: " + p.Default + "\r\n")
+                m.write("        parameter_value: " + str(p.Default) + "\r\n")
         else:
             m.write("        parameter_value: \r\n")
     m.write("    deploy_method: stack_set\r\n")
-    m.write("    deployment_targets: stack_set\r\n")
+    m.write("    deployment_targets:\r\n")
     m.write("      organizational_units:\r\n")
     m.write("        - [Enter your Organizational Unit]\r\n")
     m.write("    regions:\r\n")
-    m.write("        - [The region where you wish to deploy this workload]\r\n")
+    m.write("      - [The region where you wish to deploy this workload]\r\n")
 
 
 except YAMLError as exc:
