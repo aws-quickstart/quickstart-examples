@@ -1,0 +1,70 @@
+{
+	"info": {
+		"_postman_id": "233e8d84-5068-4909-84f0-c0340b451606",
+		"name": "AWS Blog Post",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "GET Method",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://put-your-api-gateway-stage-address-here/v0/mock?method=created",
+					"protocol": "https",
+					"host": [
+						"put-your-api-gateway-stage-address-here"
+					],
+					"path": [
+						"v0",
+						"mock"
+					],
+					"query": [
+						{
+							"key": "method",
+							"value": "created"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "POST Method",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"statusCode\": 226\r\n}"
+				},
+				"url": {
+					"raw": "https://put-your-api-gateway-stage-address-here/v0/mock",
+					"protocol": "https",
+					"host": [
+						"put-your-api-gateway-stage-address-here"
+					],
+					"path": [
+						"v0",
+						"mock"
+					],
+					"query": [
+						{
+							"key": "scope",
+							"value": "internal",
+							"disabled": true
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
