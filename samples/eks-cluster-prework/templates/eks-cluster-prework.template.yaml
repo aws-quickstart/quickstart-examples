@@ -4,6 +4,9 @@ Parameters:
   AccessCIDR:
     Default: 0.0.0.0/0
     Type: String
+  JobName:
+    Type: String
+    Default: 'job-example'
   PreworkScriptBucket:
     Type: String
     Default: 'aws-quickstart'
@@ -16,23 +19,38 @@ Resources:
     Properties:
       TemplateURL: 'https://aws-quickstart.s3.amazonaws.com/quickstart-amazon-eks/templates/amazon-eks-entrypoint-new-vpc.template.yaml'
       Parameters:
-        # Quickstart properties
+        # QuickStart properties
         QSS3BucketName: aws-quickstart
         QSS3KeyPrefix: quickstart-amazon-eks/
-        QSS3BucketRegion: us-east-1
         # Cluster properties
-	ProvisionBastionHost: Enabled
-	AccessCIDR: !Ref AccessCIDR
+        ProvisionBastionHost: Enabled
+        AccessCIDR: !Ref AccessCIDR
         NodeInstanceType: t3.large
         NumberOfNodes: 1
         MaxNumberOfNodes: 1
+  GetOIDCProvider:
+    Type: Custom::GetOIDCProvider
+    Properties:
+      ServiceToken: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:eks-quickstart-ResourceReader"
+      AwsCliCommand: !Sub "eks describe-cluster --name ${ClusterName} --query 'cluster.identity.oidc.{issuer:issuer}'"
+      IdField: 'issuer'
   PreworkStack:
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: 'https://aws-quickstart.s3.amazonaws.com/quickstart-examples/samples/eks-cluster-prework/templates/prework.template.yaml'
       Parameters:
-	ClusterName: !Sub "EKSStack.Outputs.EKSClusterName"
-        PreworkScriptBucket: "aws-quickstart"
-        PreworkScriptObject: "quickstart-examples/samples/eks-cluster-prework/scripts/pw-script.sh"
-        JobName: "ExampleJob"
+        ClusterName: !Sub "EKSStack.Outputs.EKSClusterName"
+        PreworkScriptBucket: !Ref PreworkScriptBucket
+        PreworkScriptObject: !Ref PreworkScriptObject
+        JobName: !Ref JobName
         KubernetesNameSpace: "prework-example"
+        OIDCProvider: !Sub
+          - "${OIDCProvider1}/${OIDCProvider2}/${OIDCProvider3}"
+          - OIDCProvider1: !Select [ 2, !Split [ "/", !Ref GetOIDCProvider ] ]
+            OIDCProvider2: !Select [ 3, !Split [ "/", !Ref GetOIDCProvider ] ]
+            OIDCProvider3: !Select [ 4, !Split [ "/", !Ref GetOIDCProvider ] ]
+Outputs:
+  EKSClusterName:
+    Value: !GetAtt EKSStack.Outputs.EKSClusterName
+  BastionIP:
+    Value: !GetAtt EKSStack.Outputs.BastionIP
