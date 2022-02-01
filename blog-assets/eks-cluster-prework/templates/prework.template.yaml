@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description:
+Description: "Amazon EKS cluster pre/post-work blog sample"
 Parameters:
   ClusterName:
     Type: String
@@ -8,18 +8,26 @@ Parameters:
     Default: aws-quickstart
   PreworkScriptObject:
     Type: String
-    Default: "quickstart-examples/blog-assets/eks-cluster-prework/scripts/pw-script.sh"
+    Default: "quickstart-examples/samples/eks-cluster-prework/scripts/pw-script.sh"
   JobName:
     Type: String
-    Default: ExampleJob
+    Default: job-example
+    AllowedPattern: '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*'
+    ConstraintDescription: "a lowercase RFC 1123 subdomain must consist of lower case
+      alphanumeric characters, '-' or '.', and must start and end with an alphanumeric
+      character"
+  OIDCProvider:
+    Type: String
+    Description: Amazon EKS cluster OIDC provider, without the protocol (e.g., oidc.eks.us-east-1.amazonaws.com/id/SADFASFFASFXCCVXCVSDFSDF).
+    Default: ""
   KubernetesNameSpace:
     Type: String
     Default: "prework-example"
 Resources:
-  KubernetesPreWorkIAMRole:
+  PreWorkIAMRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub "pw-role-${JobName}"   
+      RoleName: !Sub "pw-role-${JobName}"
       AssumeRolePolicyDocument: !Sub
         - |
           {
@@ -33,14 +41,14 @@ Resources:
                 "Action": "sts:AssumeRoleWithWebIdentity",
                 "Condition": {
                   "StringEquals": {
-                    "${OIDCProvider}:sub": "system:serviceaccount:${NameSpace}:${ResourceName}-${JobName}"
+                    "${OIDCProvider}:sub": "system:serviceaccount:${NameSpace}:${ResourceName}"
                   }
                 }
               }
             ]
           }
         - NameSpace: !Ref KubernetesNameSpace
-          ResourceName: "pw-service-account" 
+          ResourceName: !Sub "pw-service-account-${JobName}"
       Path: "/"
       Policies:
         - PolicyName: root
@@ -50,20 +58,22 @@ Resources:
               - Effect: Allow
                 Action:
                   - s3:GetObject
+                  - s3:HeadObject
                 Resource:
                   -  !Sub "arn:aws:s3:::${PreworkScriptBucket}/${PreworkScriptObject}"
-  PeworkNameSpace:
+  KubePreWorkNamespace:
     Type: "AWSQS::Kubernetes::Resource"
     Properties:
       ClusterName: !Ref ClusterName
+      Namespace: default
       Manifest: !Sub |
         kind: Namespace
         apiVersion: v1
         metadata:
           name: ${KubernetesNameSpace}
-      Namespace: default
-  KubernetesRole:
+  KubePreWorkRole:
     Type: AWSQS::Kubernetes::Resource
+    DependsOn: [ KubePreWorkNamespace ]
     Properties:
       ClusterName: !Ref ClusterName
       Namespace: !Ref KubernetesNameSpace
@@ -73,8 +83,8 @@ Resources:
         kind: Role
         metadata:
           labels:
-            app.kubernetes.io/name: "${ResourceName}-${JobName}"
-          name: "${ResourceName}-${JobName}"
+            app.kubernetes.io/name: "${ResourceName}"
+          name: "${ResourceName}"
         # Modify for your scripts here
         rules:
         - apiGroups:
@@ -84,11 +94,12 @@ Resources:
           verbs:
           - create
           - delete
-      - ResourceName: "pw-role"
+          - get
+      - ResourceName: !Sub "pw-role-${JobName}"
         NameSpace: !Ref "KubernetesNameSpace"
-
-  PreWorkServiceAccount:
+  KubePreWorkServiceAccount:
     Type: AWSQS::Kubernetes::Resource
+    DependsOn: [ KubePreWorkNamespace ]
     Properties:
       ClusterName: !Ref ClusterName
       Namespace: !Ref KubernetesNameSpace
@@ -98,17 +109,17 @@ Resources:
           kind: ServiceAccount
           metadata:
             labels:
-              app.kubernetes.io/name: "${ResourceName}-${JobName}"
+              app.kubernetes.io/name: "${ResourceName}"
             annotations:
-              eks.amazonaws.com/role-arn: arn:aws:iam::${AWS::AccountId}:role/${RoleName}-${JobName}
-            name: "${ResourceName}-${JobName}"
+              eks.amazonaws.com/role-arn: arn:aws:iam::${AWS::AccountId}:role/${RoleName}
+            name: "${ResourceName}"
             namespace: ${NameSpace}
-        - ResourceName: "pw-service-account"
+        - ResourceName: !Sub "pw-service-account-${JobName}"
           NameSpace: !Ref KubernetesNameSpace
-          RoleName: !Ref "PreWorkIAMRole"
-
-  PreWorkClusterRoleBinding:
+          RoleName: !Ref PreWorkIAMRole
+  KubePreWorkRoleBinding:
     Type: AWSQS::Kubernetes::Resource
+    DependsOn: [ KubePreWorkNamespace, KubePreWorkRole, KubePreWorkServiceAccount ]
     Properties:
       ClusterName: !Ref ClusterName
       Namespace: !Ref KubernetesNameSpace
@@ -118,8 +129,8 @@ Resources:
           kind: RoleBinding
           metadata:
             labels:
-              app.kubernetes.io/name: "${ResourceName}-${JobName}"
-            name: "${ResourceName}-${JobName}"
+              app.kubernetes.io/name: "${ResourceName}"
+            name: "${ResourceName}"
           roleRef:
             apiGroup: rbac.authorization.k8s.io
             kind: Role
@@ -128,11 +139,10 @@ Resources:
           - kind: ServiceAccount
             name: "pw-service-account-${JobName}"
             namespace: ${NameSpace}
-        - ResourceName: "pw-role-binding-${JobName}"
+        - ResourceName: !Sub "pw-role-binding-${JobName}"
           NameSpace: !Ref KubernetesNameSpace
-
-  PreWorkJob:
-    DependsOn: [ PreWorkIAMRole, PreWorkRole, PreWorkServiceAccount, PreWorkRoleBinding ]
+  KubePreWorkJob:
+    DependsOn: [ PreWorkIAMRole, KubePreWorkRole, KubePreWorkServiceAccount, KubePreWorkRoleBinding ]
     Type: AWSQS::Kubernetes::Resource
     Properties:
       ClusterName: !Ref ClusterName
@@ -142,7 +152,7 @@ Resources:
           apiVersion: batch/v1
           kind: Job
           metadata:
-            name: "${ResourceName}-${JobName}"
+            name: "${ResourceName}"
             namespace: ${NameSpace}
           spec:
             template:
@@ -167,9 +177,11 @@ Resources:
                     value: ${S3ScriptURL}
                   - name: AWS_REGION
                     value: ${AWS::Region}
+                  - name: KUBE_NAMESPACE
+                    value: ${KubernetesNameSpace}
                 serviceAccountName: "pw-service-account-${JobName}"
                 restartPolicy: Never
             backoffLimit: 4
-        - ResourceName: "pw-job"
+        - ResourceName: !Sub "pw-job-${JobName}"
           NameSpace: !Ref "KubernetesNameSpace"
           S3ScriptURL: !Sub "s3://${PreworkScriptBucket}/${PreworkScriptObject}"

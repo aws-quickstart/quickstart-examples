@@ -1,17 +1,18 @@
 #!/bin/bash
 # Install kubectl
-yum install -y unzip
 
-# TODO: Make this generic based on the EKS Version
-curl -o kubectl https://amazon-eks.s3.us-west-2.amazonaws.com/1.16.8/2020-04-16/bin/linux/amd64/kubectl
-chmod +x ./kubectl
+# we are installing the current version if you are on an older cluster you might need to change this.
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+# Install kubectl
+install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 
 #============= INSERT YOUR PREWORK STEPS HERE ====================#
-# Confirm VNI version (Current is 1.9.0) - we could just assume this since it is a new cluster
-kubectl describe daemonset aws-node --namespace kube-system | grep Image | cut -d "/" -f 2 > /tmp/foo.txt
-# TODO: add to a kubernetes secret we output into the CloudFormation template 
+# We will create a simple script the point of the blog is to show that you CAN run pre-work on the cluster via CloudFormation
+# so we are less concerned with the content of this script.
 
-# Set AWS_VPC_K8S_CNI_CUSTOM_NETWORK_CFG to True
-kubectl set env daemonset aws-node -n kube-system AWS_VPC_K8S_CNI_CUSTOM_NETWORK_CFG=true
-
-# Add additional steps below 
+# there are much better ways to manage secrets ;)
+kubectl create secret generic db-user-pass \
+  --from-literal=username=devuser \
+  --from-literal=password='S!B\*d$zDsb=' \
+  -- namespace $KUBE_NAMESPACE
+kubectl describe secrets/db-user-pass
