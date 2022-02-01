@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Schedule automatic deletion of CloudFormation stacks
+Description: Schedule automatic deletion of CloudFormation stacks. (qs-1s7darhsn)
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
