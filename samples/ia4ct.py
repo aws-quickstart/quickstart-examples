@@ -39,49 +39,49 @@ try:
 
     # Create the manifest file and write the document
     m = open(args.outPath, "w+")
-    m.write("---\r\n")
-    m.write("region: [The region where Customization for Control Tower is deployed]\r\n")
-    m.write("version: 2021-03-15\r\n")
-    m.write("resources:\r\n")
-    m.write("  - name: [The name for this deployment]\r\n")
-    m.write("    description: " + cfn['Description'] + "\r\n")
-    m.write("    resource_file: [The s3 path where the template is located.]\r\n")
-    m.write("    parameters:\r\n")
+    m.write("---\n")
+    m.write("region: [The region where Customization for Control Tower is deployed]\n")
+    m.write("version: 2021-03-15\n")
+    m.write("resources:\n")
+    m.write("  - name: [The name for this deployment]\n")
+    m.write("    description: " + cfn['Description'] + "\n")
+    m.write("    resource_file: [The s3 path where the template is located.]\n")
+    m.write("    parameters:\n")
 
     parameters.sort(key=lambda x: x.name)
     for p in parameters:
         if args.verboseManifest:
             if hasattr(p,"Description"):
-                m.write("      # Description: " + p.Description + "\r\n")
+                m.write("      # Description: " + p.Description + "\n")
             if hasattr(p,"AllowedPattern"):
-                m.write("      # AllowedPattern: " + p.AllowedPattern + "\r\n")
+                m.write("      # AllowedPattern: " + p.AllowedPattern + "\n")
             if hasattr(p,"AllowedValues"):
-                m.write("      # AllowedValues: " + ' '.join(p.AllowedValues) + "\r\n")
+                m.write("      # AllowedValues: " + ' '.join(str(v) for v in p.AllowedValues) + "\n")
             if hasattr(p,"ConstraintDescription"):
-                m.write("      # ConstraintDescription: " + p.ConstraintDescription + "\r\n")
+                m.write("      # ConstraintDescription: " + p.ConstraintDescription + "\n")
             if hasattr(p,"MaxLength"):
-                m.write("      # MaxLength: " + p.MaxLength + "\r\n")
+                m.write("      # MaxLength: " + p.MaxLength + "\n")
             if hasattr(p,"MaxValue"):
-                m.write("      # MaxValue: " + p.MaxValue + "\r\n")
+                m.write("      # MaxValue: " + p.MaxValue + "\n")
             if hasattr(p,"MinLength"):
-                m.write("      # MinLength: " + p.MinLength + "\r\n")
+                m.write("      # MinLength: " + p.MinLength + "\n")
             if hasattr(p,"MinValue"):
-                m.write("      # MinValue: " + p.MinValue + "\r\n")
+                m.write("      # MinValue: " + p.MinValue + "\n")
             if hasattr(p,"NoEcho"):
-                m.write("      # NoEcho: " + p.NoEcho + "\r\n")
+                m.write("      # NoEcho: " + p.NoEcho + "\n")
             if hasattr(p,"Type"):
-                m.write("      # Type: " + p.Type + "\r\n")
-        m.write("      - parameter_key: " + p.name + "\r\n")
+                m.write("      # Type: " + p.Type + "\n")
+        m.write("      - parameter_key: " + p.name + "\n")
         if hasattr(p,"Default"):
-                m.write("        parameter_value: " + p.Default + "\r\n")
+                m.write("        parameter_value: " + str(p.Default) + "\n")
         else:
-            m.write("        parameter_value: \r\n")
-    m.write("    deploy_method: stack_set\r\n")
-    m.write("    deployment_targets: stack_set\r\n")
-    m.write("      organizational_units:\r\n")
-    m.write("        - [Enter your Organizational Unit]\r\n")
-    m.write("    regions:\r\n")
-    m.write("        - [The region where you wish to deploy this workload]\r\n")
+            m.write("        parameter_value: \n")
+    m.write("    deploy_method: stack_set\n")
+    m.write("    deployment_targets:\n")
+    m.write("      organizational_units:\n")
+    m.write("        - [Enter your Organizational Unit]\n")
+    m.write("    regions:\n")
+    m.write("      - [The region where you wish to deploy this workload]\n")
 
 
 except YAMLError as exc:
