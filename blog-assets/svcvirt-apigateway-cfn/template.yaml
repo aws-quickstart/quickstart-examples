@@ -1,0 +1,158 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: AWS API Gateway working as a Service Virtualization
+
+Resources:
+
+  RestApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      ApiKeySourceType: HEADER
+      Description: An API Gateway as Service Virtualization
+      EndpointConfiguration:
+        Types:
+          - EDGE
+      Name: mock-api
+
+  Resource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt RestApi.RootResourceId
+      PathPart: 'mock'
+      RestApiId: !Ref RestApi
+  
+  GetMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      ApiKeyRequired: false
+      AuthorizationType: NONE
+      HttpMethod: GET
+      RequestParameters:
+        method.request.querystring.method: true
+      MethodResponses:
+        - ResponseModels:
+            application/json: !Ref ApiGatewayModel
+          StatusCode: 200
+        - ResponseModels:
+            application/json: !Ref ApiGatewayModel
+          StatusCode: 201
+        - ResponseModels:
+            application/json: !Ref ApiGatewayModel
+          StatusCode: 500
+        - ResponseModels:
+            application/json: !Ref ApiGatewayModel
+          StatusCode: 503
+      Integration:
+        ConnectionType: INTERNET
+        IntegrationResponses:
+          - ResponseTemplates:
+              application/json: |
+                {
+                  "statusCode": 200,
+                  "message": "OK. No problem here."
+                }
+            StatusCode: 200
+          - ResponseTemplates:
+              application/json: |
+                {
+                  "statusCode": 201,
+                  "message": "Created. It appears to be good."
+                }
+            SelectionPattern: '201'
+            StatusCode: 201
+          - ResponseTemplates:
+              application/json: |
+                {
+                  "statusCode": 500,
+                  "message": "Internal Server Error. Houston, we have a problem."
+                }
+            SelectionPattern: '500'
+            StatusCode: 500
+          - ResponseTemplates:
+              application/json: |
+                {
+                  "statusCode": 503,
+                  "message": "Service Unavailable. I am not ready yet."
+                }
+            SelectionPattern: '503'
+            StatusCode: 503
+        PassthroughBehavior: WHEN_NO_TEMPLATES
+        RequestTemplates:
+          application/json: |
+            {
+              #if ( $input.params('method') == "ok" )
+                "statusCode": 200
+              #elseif ( $input.params('method') == "created" )
+                "statusCode": 201
+              #elseif ( $input.params('method') == "internalerror" )
+                "statusCode": 500
+              #else
+                "statusCode": 503
+              #end
+            }
+        Type: MOCK
+        TimeoutInMillis: 29000
+      OperationName: 'mock'
+      ResourceId: !Ref Resource
+      RestApiId: !Ref RestApi
+  
+  PostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      ApiKeyRequired: false
+      AuthorizationType: NONE
+      HttpMethod: POST
+      MethodResponses:
+        - ResponseModels:
+            application/json: !Ref ApiGatewayModel
+          StatusCode: 200
+        - ResponseModels:
+            application/json: !Ref ApiGatewayModel
+          StatusCode: 500
+      Integration:
+        ConnectionType: INTERNET
+        IntegrationResponses:
+          - ResponseTemplates:
+              application/json: "{\"message\": \"OK. No problem here.\"}"
+            # SelectionPattern: '2\d{2}'
+            StatusCode: 200
+          - ResponseTemplates:
+              application/json: "{\"message\": \"Internal Server Error. Houston, we have a problem.\"}"
+            SelectionPattern: '5\d{2}'
+            StatusCode: 500
+        PassthroughBehavior: WHEN_NO_TEMPLATES
+        RequestTemplates:
+          application/json: |
+            {
+              "statusCode": $input.json('$.statusCode'),
+              "message": $input.json('$.message')
+            }
+        Type: MOCK
+        TimeoutInMillis: 29000
+      OperationName: 'mock'
+      ResourceId: !Ref Resource
+      RestApiId: !Ref RestApi
+
+  ApiGatewayModel:
+    Type: AWS::ApiGateway::Model
+    Properties:
+      ContentType: 'application/json'
+      RestApiId: !Ref RestApi
+      Schema: {}
+
+  ApiGatewayStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      DeploymentId: !Ref ApiGatewayDeployment
+      Description: Mock API Stage v0
+      RestApiId: !Ref RestApi
+      StageName: 'v0'
+
+  ApiGatewayDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn: 
+      - GetMethod
+      - PostMethod
+    Properties:
+      Description: Mock API Deployment
+      RestApiId: !Ref RestApi
