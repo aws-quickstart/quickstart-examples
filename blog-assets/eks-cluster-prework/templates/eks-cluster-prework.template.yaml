@@ -32,7 +32,7 @@ Resources:
     Type: Custom::GetOIDCProvider
     Properties:
       ServiceToken: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:eks-quickstart-ResourceReader"
-      AwsCliCommand: !Sub "eks describe-cluster --name ${ClusterName} --query 'cluster.identity.oidc.{issuer:issuer}'"
+      AwsCliCommand: !Sub "eks describe-cluster --name ${EKSStack.Outputs.EKSClusterName} --query 'cluster.identity.oidc.{issuer:issuer}'"
       IdField: 'issuer'
   PreworkStack:
     Type: AWS::CloudFormation::Stack

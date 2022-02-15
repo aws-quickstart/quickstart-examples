@@ -16,10 +16,6 @@ Parameters:
     ConstraintDescription: "a lowercase RFC 1123 subdomain must consist of lower case
       alphanumeric characters, '-' or '.', and must start and end with an alphanumeric
       character"
-  OIDCProvider:
-    Type: String
-    Description: Amazon EKS cluster OIDC provider, without the protocol (e.g., oidc.eks.us-east-1.amazonaws.com/id/SADFASFFASFXCCVXCVSDFSDF).
-    Default: ""
   KubernetesNameSpace:
     Type: String
     Default: "prework-example"
@@ -36,12 +32,12 @@ Resources:
               {
                 "Effect": "Allow",
                 "Principal": {
-                  "Federated": "arn:aws:iam::${AWS::AccountId}:oidc-provider/${OIDCProvider}"
+                  "Federated": "arn:aws:iam::${AWS::AccountId}:oidc-provider/${GetOIDCProvider}"
                 },
                 "Action": "sts:AssumeRoleWithWebIdentity",
                 "Condition": {
                   "StringEquals": {
-                    "${OIDCProvider}:sub": "system:serviceaccount:${NameSpace}:${ResourceName}"
+                    "${GetOIDCProvider}:sub": "system:serviceaccount:${NameSpace}:${ResourceName}"
                   }
                 }
               }
@@ -60,7 +56,13 @@ Resources:
                   - s3:GetObject
                   - s3:HeadObject
                 Resource:
-                  -  !Sub "arn:aws:s3:::${PreworkScriptBucket}/${PreworkScriptObject}"
+                  - !Sub "arn:${AWS::Partition}:s3:::${PreworkScriptBucket}/${PreworkScriptObject}"
+  GetOIDCProvider:
+    Type: Custom::GetOIDCProvider
+    Properties:
+      ServiceToken: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:eks-quickstart-ResourceReader"
+      AwsCliCommand: !Sub "eks describe-cluster --name ${ClusterName} --query 'cluster.identity.oidc.{issuer:issuer}'"
+      IdField: 'issuer'
   KubePreWorkNamespace:
     Type: "AWSQS::Kubernetes::Resource"
     Properties:
