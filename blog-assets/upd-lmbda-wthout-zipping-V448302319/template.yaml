@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-
+Description: "Update your Lambda functions without zipping and uploading files to S3 (qs-1t29l4g74)"
 Parameters:
   pCodeCommitRepoName:
     Description: The name of the CodeCommit Repository which stores the Lambda code
