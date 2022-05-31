@@ -1,23 +1,23 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: "Update your Lambda functions without zipping and uploading files to S3 (qs-1t29l4g74)"
 Parameters:
-  pCodeCommitRepoName:
+  CodeCommitRepoName:
     Description: The name of the CodeCommit Repository which stores the Lambda code
     Type: String
-  pCodeCommitBranchName:
+  CodeCommitBranchName:
     Description: The name of the CodeCommit branch in the repo which stores the lambda code
     Type: String
-  pPipelineBucket:
+  PipelineBucket:
     Description: Enter the name of the pre-existing pipeline bucket
     Type: String
-  pRegion:
+  Region:
     Description: Region to deploy resources in
     Type: String
     Default: us-east-1
 
 
 Resources:
-  rBuildProjectRole:
+  BuildProjectRole:
     Type: AWS::IAM::Role
     Properties:
       RoleName: CodeBuildUpdateLambdaRole
@@ -36,7 +36,7 @@ Resources:
       Path: "/service-role/"
 
 
-  rBuildProjectPolicy:
+  BuildProjectPolicy:
     Type: AWS::IAM::Policy
     Properties:
       PolicyName: CodeBuildUpdateLambdaRolePolicy
@@ -53,7 +53,7 @@ Resources:
                   "",
                   [
                     "arn:aws:s3:::",
-                    !Ref "pPipelineBucket",
+                    !Ref "PipelineBucket",
                     "/*",
                   ],
                 ]
@@ -61,7 +61,7 @@ Resources:
                   "",
                   [
                     "arn:aws:s3:::",
-                    !Ref "pPipelineBucket",
+                    !Ref "PipelineBucket",
                   ],
                 ]
           - Effect: Allow
@@ -73,15 +73,15 @@ Resources:
           - Effect: Allow
             Action:
               - lambda:Update*
-            Resource: !GetAtt rLambda.Arn
+            Resource: !GetAtt Lambda.Arn
       Roles:
-        - !Ref rBuildProjectRole
+        - !Ref BuildProjectRole
 
-  rBuildProject:
+  BuildProject:
     Type: AWS::CodeBuild::Project
     Properties:
       Description: This stage runs the updating of the Lambda code
-      ServiceRole: !GetAtt rBuildProjectRole.Arn
+      ServiceRole: !GetAtt BuildProjectRole.Arn
       Artifacts:
         Type: NO_ARTIFACTS
       Environment:
@@ -89,6 +89,8 @@ Resources:
         Image: aws/codebuild/amazonlinux2-x86_64-standard:2.0
         Type: LINUX_CONTAINER
         PrivilegedMode: false
+      EncryptionKey:
+        alias/aws/s3
       LogsConfig:
         CloudWatchLogs:
           Status: ENABLED
@@ -99,7 +101,7 @@ Resources:
           - - "https://git-codecommit."
             - !Ref "AWS::Region"
             - ".amazonaws.com/v1/repos/"
-            - !Ref "pCodeCommitRepoName"
+            - !Ref "CodeCommitRepoName"
         BuildSpec: !Sub
           - |
             version: 0.2
@@ -108,21 +110,24 @@ Resources:
             phases:
               install:
                 runtime-versions:
-                  python: 3.8
+                  python: 3.9
                 commands:
                   - pwd
                   - ls
+              pre_build:
+                commands:
+                  - ACCOUNT_ID=$(echo $CODEBUILD_BUILD_ARN | cut -f5 -d ':')
               build:
                 commands:
                   - zip index.zip index.py
-                  - aws s3 cp index.zip s3://${artifactbucket}/index.zip
-                  - sleep 3s
-                  - aws lambda update-function-code --function-name ${rLambda} --s3-bucket ${artifactbucket} --s3-key index.zip
+                  - aws s3api put-object --bucket ${artifactbucket} --key index.zip --body index.zip --expected-bucket-owner $ACCOUNT_ID
+                  - wait
+                  - aws lambda update-function-code --function-name ${Lambda} --s3-bucket ${artifactbucket} --s3-key index.zip
           - artifactbucket:
-              !Ref pPipelineBucket
+              !Ref PipelineBucket
 
 
-  rCodePipelineRole:
+  CodePipelineRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -135,9 +140,7 @@ Resources:
         Version: "2012-10-17"
       Path: /
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/IAMFullAccess
-        - arn:aws:iam::aws:policy/AWSCodeCommitFullAccess
-        - arn:aws:iam::aws:policy/AWSCodeDeployFullAccess
+        - arn:aws:iam::aws:policy/AWSCodeCommitPowerUser
       Policies:
         - PolicyName: IAM-PassRole
           PolicyDocument:
@@ -166,14 +169,14 @@ Resources:
                       "",
                       [
                         "arn:aws:s3:::",
-                          !Ref pPipelineBucket,
+                          !Ref PipelineBucket,
                         ],
                     ]
                   - !Join [
                       "",
                       [
                         "arn:aws:s3:::",
-                        !Ref "pPipelineBucket",
+                        !Ref "PipelineBucket",
                         "/*"
                       ],
                     ]
@@ -185,14 +188,22 @@ Resources:
                   - "codebuild:Start*"
                   - "codebuild:Batch*"
                 Effect: Allow
-                Resource: !GetAtt rBuildProject.Arn
+                Resource: !GetAtt BuildProject.Arn
+        - PolicyName: AllowCodeCommitUploadArchive
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                  - "codecommit:UploadArchive"
+                Effect: Allow
+                Resource: !Sub arn:aws:codecommit:${Region}:${AWS::AccountId}:${CodeCommitRepoName}
 
-  rCodePipeline:
+  CodePipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
       Name: UpdateLambdaCodePipeline
       RestartExecutionOnUpdate: true
-      RoleArn: !Sub arn:aws:iam::${AWS::AccountId}:role/${rCodePipelineRole}
+      RoleArn: !Sub arn:aws:iam::${AWS::AccountId}:role/${CodePipelineRole}
       Stages:
         - Name: Source
           Actions:
@@ -205,11 +216,11 @@ Resources:
               OutputArtifacts:
                 - Name: SourceArtifact
               Configuration:
-                RepositoryName: !Ref pCodeCommitRepoName
-                BranchName: !Ref pCodeCommitBranchName
+                RepositoryName: !Ref CodeCommitRepoName
+                BranchName: !Ref CodeCommitBranchName
                 PollForSourceChanges: "false"
               RunOrder: 1
-              Region: !Ref pRegion
+              Region: !Ref Region
         - Name: Deploy
           Actions:
             - Name: UpdateQueryCreationLambdaCode
@@ -222,12 +233,12 @@ Resources:
               InputArtifacts:
                 - Name: SourceArtifact
               Configuration:
-                ProjectName: !Ref rBuildProject
+                ProjectName: !Ref BuildProject
       ArtifactStore:
         Type: S3
-        Location: !Ref pPipelineBucket
+        Location: !Ref PipelineBucket
 
-  rLambdaRole:
+  LambdaRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -255,7 +266,7 @@ Resources:
                       "",
                       [
                         "arn:aws:s3:::",
-                        !Ref "pPipelineBucket",
+                        !Ref "PipelineBucket",
                         "/*",
                       ],
                     ]
@@ -263,18 +274,18 @@ Resources:
                       "",
                       [
                         "arn:aws:s3:::",
-                        !Ref "pPipelineBucket",
+                        !Ref "PipelineBucket",
                       ],
                     ]
 
-  rLambda:
+  Lambda:
     Type: AWS::Lambda::Function
     Properties:
       Handler: index.lambda_handler
-      Role: !GetAtt rLambdaRole.Arn
-      Runtime: python3.7
+      Role: !GetAtt LambdaRole.Arn
+      Runtime: python3.9
       Timeout: 120
       FunctionName: SampleLambda
       Code:
-        S3Bucket: !Ref pPipelineBucket
+        S3Bucket: !Ref PipelineBucket
         S3Key: index.zip
