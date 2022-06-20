@@ -34,7 +34,7 @@ Resources:
         # Cluster properties
         ProvisionBastionHost: Enabled
         RemoteAccessCIDR: !Ref AccessCIDR
-	
+        AvailabilityZones: !Join [ ',', !Ref 'AvailabilityZones' ]
         NodeInstanceType: t3.large
         NumberOfNodes: 1
         MaxNumberOfNodes: 1
