@@ -7,6 +7,15 @@ Parameters:
   JobName:
     Type: String
     Default: 'job-example'
+  AvailabilityZones:
+    Description: List of Availability Zones to use for the subnets in the VPC. Three
+      Availability Zones are used for this deployment.
+    Type: List<AWS::EC2::AvailabilityZone::Name>  AvailabilityZones:
+  NumberOfAZs:
+    Type: String
+    AllowedValues: ["2", "3"]
+    Default: "2"
+    Description: Number of Availability Zones to use in the VPC. This must match the value entered for the AvailabilityZones parameter.
   PreworkScriptBucket:
     Type: String
     Default: 'aws-quickstart'
@@ -24,7 +33,8 @@ Resources:
         QSS3KeyPrefix: quickstart-amazon-eks/
         # Cluster properties
         ProvisionBastionHost: Enabled
-        AccessCIDR: !Ref AccessCIDR
+        RemoteAccessCIDR: !Ref AccessCIDR
+	
         NodeInstanceType: t3.large
         NumberOfNodes: 1
         MaxNumberOfNodes: 1
@@ -32,7 +42,7 @@ Resources:
     Type: Custom::GetOIDCProvider
     Properties:
       ServiceToken: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:eks-quickstart-ResourceReader"
-      AwsCliCommand: !Sub "eks describe-cluster --name ${ClusterName} --query 'cluster.identity.oidc.{issuer:issuer}'"
+      AwsCliCommand: !Sub "eks describe-cluster --name ${EKSStack.Outputs.EKSClusterName} --query 'cluster.identity.oidc.{issuer:issuer}'"
       IdField: 'issuer'
   PreworkStack:
     Type: AWS::CloudFormation::Stack
