@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 
-Description: Deploys a VPC
+Description: "Deploys a VPC (qs-1t72ibrq5)"
 
 Resources:
   Vpc:
