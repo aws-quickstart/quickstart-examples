@@ -1,0 +1,13 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: Deploys a VPC
+
+Resources:
+  Vpc:
+    Type: AWS::EC2::VPC
+    DeletionPolicy: Retain
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      Tags:
+        - Key: Name
+          Value: rename-stack-demo

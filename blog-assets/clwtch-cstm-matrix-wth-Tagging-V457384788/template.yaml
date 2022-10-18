@@ -1,0 +1,147 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: "Deploys a solution to automate the CloudWatch agent configurations based on specific tags(qs-1st6kiobq)"
+
+Resources:
+  InstanceIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Sid: AssumeRole
+          Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service: "ec2.amazonaws.com"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref InstanceIAMRole
+
+  ApplicationAJsonConfig:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: ApplicationAParameter
+      Type: String
+      Value: |
+        {
+          "metrics": {
+            "namespace": "ApplicationA",
+            "append_dimensions": {
+              "InstanceId": "${aws:InstanceId}"
+            },
+            "metrics_collected": {
+              "disk": {
+                "measurement": [
+                  "used_percent"
+                ],
+                "metrics_collection_interval": 60
+              }
+            }
+          }
+        }
+      Description: JSON config for CW Agent for Linux Application A
+
+  ApplicationBJsonConfig:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: ApplicationBParameter
+      Type: String
+      Value: |
+        {
+          "metrics": {
+            "namespace": "ApplicationB",
+            "append_dimensions": {
+              "InstanceId": "${aws:InstanceId}"
+            },
+            "metrics_collected": {
+              "mem": {
+                "measurement": [
+                  "mem_used_percent"
+                ],
+                "metrics_collection_interval": 60
+              }
+            }
+          }
+        }
+      Description: JSON config for CW Agent for Linux Application B
+
+  InstallAndConfigureCloudWatchAgentDocument:
+    Type: AWS::SSM::Document
+    Properties:
+      Name: SSMDocumentInstallConfigureCWAgent
+      DocumentType: Command
+      Content:
+        schemaVersion: '2.2'
+        description: Configures the CloudWatch Agent on Windows and Linux instances
+        parameters:
+          ssmParameterStoreParameterName:
+            type: String
+            description: "(Required) The SSM parameter name that contains the JSON configuration"
+        mainSteps:
+        - action: aws:runDocument
+          precondition:
+            StringEquals:
+              - platformType
+              - Linux
+          name: InstallCWAgent
+          inputs:
+            documentType: SSMDocument
+            documentPath: AWS-ConfigureAWSPackage
+            documentParameters:
+              action: Install
+              name: AmazonCloudWatchAgent
+        - action: aws:runDocument
+          precondition:
+            StringEquals:
+              - platformType
+              - Linux
+          name: ConfigureCWAgent
+          inputs:
+            documentType: SSMDocument
+            documentPath: AmazonCloudWatch-ManageAgent
+            documentParameters:
+              action: configure
+              mode: ec2
+              optionalConfigurationSource: ssm
+              optionalConfigurationLocation: '{{ ssmParameterStoreParameterName }}'
+
+  SSMAssociationCwAgentApplicationA:
+    Type: AWS::SSM::Association
+    Properties:
+      AssociationName: ApplicationAAssociation
+      Name: !Ref InstallAndConfigureCloudWatchAgentDocument
+      Parameters:
+        ssmParameterStoreParameterName:
+          - !Ref ApplicationAJsonConfig
+      Targets:
+        - Key: tag:Application
+          Values:
+          - ApplicationA
+      WaitForSuccessTimeoutSeconds: 300
+
+  SSMAssociationCwAgentApplicationB:
+    Type: AWS::SSM::Association
+    Properties:
+      AssociationName: ApplicationBAssociation
+      Name: !Ref InstallAndConfigureCloudWatchAgentDocument
+      Parameters:
+        ssmParameterStoreParameterName:
+          - !Ref ApplicationBJsonConfig
+      Targets:
+        - Key: tag:Application
+          Values:
+          - ApplicationB
+      WaitForSuccessTimeoutSeconds: 300
+
+Outputs:
+  InstanceProfileName:
+    Description: The name of the Instance Profile to assign to the EC2 instance
+    Value: !Ref InstanceProfile

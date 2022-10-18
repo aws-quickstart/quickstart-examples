@@ -1,0 +1,291 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Update your Lambda functions without zipping and uploading files to S3 (qs-1t29l4g74)"
+Parameters:
+  CodeCommitRepoName:
+    Description: The name of the CodeCommit Repository which stores the Lambda code
+    Type: String
+  CodeCommitBranchName:
+    Description: The name of the CodeCommit branch in the repo which stores the lambda code
+    Type: String
+  PipelineBucket:
+    Description: Enter the name of the pre-existing pipeline bucket
+    Type: String
+  Region:
+    Description: Region to deploy resources in
+    Type: String
+    Default: us-east-1
+
+
+Resources:
+  BuildProjectRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: CodeBuildUpdateLambdaRole
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - codebuild.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AWSCodeCommitPowerUser"
+        - "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
+      Path: "/service-role/"
+
+
+  BuildProjectPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: CodeBuildUpdateLambdaRolePolicy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:Put*
+              - s3:Get*
+              - s3:List*
+            Resource:
+              - !Join [
+                  "",
+                  [
+                    "arn:aws:s3:::",
+                    !Ref "PipelineBucket",
+                    "/*",
+                  ],
+                ]
+              - !Join [
+                  "",
+                  [
+                    "arn:aws:s3:::",
+                    !Ref "PipelineBucket",
+                  ],
+                ]
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource: arn:aws:logs:*:*:*
+          - Effect: Allow
+            Action:
+              - lambda:Update*
+            Resource: !GetAtt Lambda.Arn
+      Roles:
+        - !Ref BuildProjectRole
+
+  BuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Description: This stage runs the updating of the Lambda code
+      ServiceRole: !GetAtt BuildProjectRole.Arn
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:2.0
+        Type: LINUX_CONTAINER
+        PrivilegedMode: false
+      EncryptionKey:
+        alias/aws/s3
+      LogsConfig:
+        CloudWatchLogs:
+          Status: ENABLED
+      Source:
+        Type: CODECOMMIT
+        Location: !Join
+          - ""
+          - - "https://git-codecommit."
+            - !Ref "AWS::Region"
+            - ".amazonaws.com/v1/repos/"
+            - !Ref "CodeCommitRepoName"
+        BuildSpec: !Sub
+          - |
+            version: 0.2
+            env:
+              git-credential-helper: yes
+            phases:
+              install:
+                runtime-versions:
+                  python: 3.9
+                commands:
+                  - pwd
+                  - ls
+              pre_build:
+                commands:
+                  - ACCOUNT_ID=$(echo $CODEBUILD_BUILD_ARN | cut -f5 -d ':')
+              build:
+                commands:
+                  - zip index.zip index.py
+                  - aws s3api put-object --bucket ${artifactbucket} --key index.zip --body index.zip --expected-bucket-owner $ACCOUNT_ID
+                  - wait
+                  - aws lambda update-function-code --function-name ${Lambda} --s3-bucket ${artifactbucket} --s3-key index.zip
+          - artifactbucket:
+              !Ref PipelineBucket
+
+
+  CodePipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: ["sts:AssumeRole"]
+            Effect: Allow
+            Principal:
+              Service:
+                - codepipeline.amazonaws.com
+        Version: "2012-10-17"
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSCodeCommitPowerUser
+      Policies:
+        - PolicyName: IAM-PassRole
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                  - "iam:PassRole"
+                Effect: Allow
+                Resource:
+                  !Join [
+                    "",
+                    ["arn:aws:iam:", ":", !Ref "AWS::AccountId", ":role/*"],
+                  ]
+        - PolicyName: AllowS3Access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                  - "s3:PutObject"
+                  - "s3:GetObject"
+                  - "s3:GetObjectVersion"
+                  - "s3:List*"
+                Effect: Allow
+                Resource:
+                  - !Join [
+                      "",
+                      [
+                        "arn:aws:s3:::",
+                          !Ref PipelineBucket,
+                        ],
+                    ]
+                  - !Join [
+                      "",
+                      [
+                        "arn:aws:s3:::",
+                        !Ref "PipelineBucket",
+                        "/*"
+                      ],
+                    ]
+        - PolicyName: AllowCodeBuildAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                  - "codebuild:Start*"
+                  - "codebuild:Batch*"
+                Effect: Allow
+                Resource: !GetAtt BuildProject.Arn
+        - PolicyName: AllowCodeCommitUploadArchive
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                  - "codecommit:UploadArchive"
+                Effect: Allow
+                Resource: !Sub arn:aws:codecommit:${Region}:${AWS::AccountId}:${CodeCommitRepoName}
+
+  CodePipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: UpdateLambdaCodePipeline
+      RestartExecutionOnUpdate: true
+      RoleArn: !Sub arn:aws:iam::${AWS::AccountId}:role/${CodePipelineRole}
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: Source
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Version: "1"
+                Provider: CodeCommit
+              OutputArtifacts:
+                - Name: SourceArtifact
+              Configuration:
+                RepositoryName: !Ref CodeCommitRepoName
+                BranchName: !Ref CodeCommitBranchName
+                PollForSourceChanges: "false"
+              RunOrder: 1
+              Region: !Ref Region
+        - Name: Deploy
+          Actions:
+            - Name: UpdateQueryCreationLambdaCode
+              RunOrder: 1
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: "1"
+                Provider: CodeBuild
+              InputArtifacts:
+                - Name: SourceArtifact
+              Configuration:
+                ProjectName: !Ref BuildProject
+      ArtifactStore:
+        Type: S3
+        Location: !Ref PipelineBucket
+
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Path: /service-role/
+      Policies:
+        - PolicyName: S3PutObject
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "s3:PutObject"
+                Resource:
+                  - !Join [
+                      "",
+                      [
+                        "arn:aws:s3:::",
+                        !Ref "PipelineBucket",
+                        "/*",
+                      ],
+                    ]
+                  - !Join [
+                      "",
+                      [
+                        "arn:aws:s3:::",
+                        !Ref "PipelineBucket",
+                      ],
+                    ]
+
+  Lambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaRole.Arn
+      Runtime: python3.9
+      Timeout: 120
+      FunctionName: SampleLambda
+      Code:
+        S3Bucket: !Ref PipelineBucket
+        S3Key: index.zip

@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 
-Description: AWS API Gateway working as a Service Virtualization
+Description: "AWS API Gateway working as a Service Virtualization (qs-1sq3s942d)"
 
 Resources:
 
