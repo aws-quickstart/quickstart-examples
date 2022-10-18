@@ -6,7 +6,7 @@ Parameters:
     Type: String
   JobName:
     Type: String
-    Default: 'job-example'
+    Default: 'example-job'
   AvailabilityZones:
     Description: List of Availability Zones to use for the subnets in the VPC. Three
       Availability Zones are used for this deployment.
@@ -38,12 +38,6 @@ Resources:
         NodeInstanceType: t3.large
         NumberOfNodes: 1
         MaxNumberOfNodes: 1
-  GetOIDCProvider:
-    Type: Custom::GetOIDCProvider
-    Properties:
-      ServiceToken: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:eks-quickstart-ResourceReader"
-      AwsCliCommand: !Sub "eks describe-cluster --name ${EKSStack.Outputs.EKSClusterName} --query 'cluster.identity.oidc.{issuer:issuer}'"
-      IdField: 'issuer'
   PreworkStack:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -54,11 +48,6 @@ Resources:
         PreworkScriptObject: !Ref PreworkScriptObject
         JobName: !Ref JobName
         KubernetesNameSpace: "prework-example"
-        OIDCProvider: !Sub
-          - "${OIDCProvider1}/${OIDCProvider2}/${OIDCProvider3}"
-          - OIDCProvider1: !Select [ 2, !Split [ "/", !Ref GetOIDCProvider ] ]
-            OIDCProvider2: !Select [ 3, !Split [ "/", !Ref GetOIDCProvider ] ]
-            OIDCProvider3: !Select [ 4, !Split [ "/", !Ref GetOIDCProvider ] ]
 Outputs:
   EKSClusterName:
     Value: !GetAtt EKSStack.Outputs.EKSClusterName

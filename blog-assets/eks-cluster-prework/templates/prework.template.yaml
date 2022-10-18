@@ -32,12 +32,12 @@ Resources:
               {
                 "Effect": "Allow",
                 "Principal": {
-                  "Federated": "arn:aws:iam::${AWS::AccountId}:oidc-provider/${GetOIDCProvider}"
+                  "Federated": "arn:aws:iam::${AWS::AccountId}:oidc-provider/${OIDCProvider}"
                 },
                 "Action": "sts:AssumeRoleWithWebIdentity",
                 "Condition": {
                   "StringEquals": {
-                    "${GetOIDCProvider}:sub": "system:serviceaccount:${NameSpace}:${ResourceName}"
+                    "${OIDCProvider}:sub": "system:serviceaccount:${NameSpace}:${ResourceName}"
                   }
                 }
               }
@@ -45,6 +45,8 @@ Resources:
           }
         - NameSpace: !Ref KubernetesNameSpace
           ResourceName: !Sub "pw-service-account-${JobName}"
+          OIDProvider: !Join [ '', !Split [ 'https://', !Ref 'GetOIDCProvider' ] ]
+
       Path: "/"
       Policies:
         - PolicyName: root
@@ -166,8 +168,6 @@ Resources:
                   args:
                   - >
                     sleep 15;
-                    yum update -y;
-                    yum install -y awscli;
                     export AWS_REGION=${AWS::Region};
                     export NS=${NameSpace};
                     aws sts get-caller-identity;
