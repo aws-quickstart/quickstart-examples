@@ -11,7 +11,7 @@ Parameters:
     Default: "quickstart-examples/samples/eks-cluster-prework/scripts/pw-script.sh"
   JobName:
     Type: String
-    Default: job-example
+    Default: example-job
     AllowedPattern: '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*'
     ConstraintDescription: "a lowercase RFC 1123 subdomain must consist of lower case
       alphanumeric characters, '-' or '.', and must start and end with an alphanumeric
@@ -45,6 +45,7 @@ Resources:
           }
         - NameSpace: !Ref KubernetesNameSpace
           ResourceName: !Sub "pw-service-account-${JobName}"
+          OIDCProvider: !Join [ '', !Split [ 'https://', !Ref 'GetOIDCProvider' ] ]
       Path: "/"
       Policies:
         - PolicyName: root
@@ -166,8 +167,6 @@ Resources:
                   args:
                   - >
                     sleep 15;
-                    yum update -y;
-                    yum install -y awscli;
                     export AWS_REGION=${AWS::Region};
                     export NS=${NameSpace};
                     aws sts get-caller-identity;
