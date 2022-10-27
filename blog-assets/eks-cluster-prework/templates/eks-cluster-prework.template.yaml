@@ -4,13 +4,18 @@ Parameters:
   AccessCIDR:
     Default: 0.0.0.0/0
     Type: String
+  KeyPairName:
+    Description: Name of an existing key pair, which allows you to securely connect to your bastion instance after it launches.
+      Leave empty to proceed without a key pair. You would need to use AWS Systems Manager Session Manager to connect to the provisioned EC2 instances.
+    Type: String
+    Default: ""
   JobName:
     Type: String
     Default: 'example-job'
   AvailabilityZones:
     Description: List of Availability Zones to use for the subnets in the VPC. Three
       Availability Zones are used for this deployment.
-    Type: List<AWS::EC2::AvailabilityZone::Name>  AvailabilityZones:
+    Type: List<AWS::EC2::AvailabilityZone::Name>
   NumberOfAZs:
     Type: String
     AllowedValues: ["2", "3"]
@@ -28,22 +33,22 @@ Resources:
     Properties:
       TemplateURL: 'https://aws-quickstart.s3.amazonaws.com/quickstart-amazon-eks/templates/amazon-eks-entrypoint-new-vpc.template.yaml'
       Parameters:
-        # QuickStart properties
-        QSS3BucketName: aws-quickstart
-        QSS3KeyPrefix: quickstart-amazon-eks/
         # Cluster properties
         ProvisionBastionHost: Enabled
+        KeyPairName: !Ref KeyPairName
         RemoteAccessCIDR: !Ref AccessCIDR
         AvailabilityZones: !Join [ ',', !Ref 'AvailabilityZones' ]
+        NumberOfAZs: !Ref NumberOfAZs
         NodeInstanceType: t3.large
         NumberOfNodes: 1
         MaxNumberOfNodes: 1
   PreworkStack:
+    DependsOn: EKSStack
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: 'https://aws-quickstart.s3.amazonaws.com/quickstart-examples/blog-assets/eks-cluster-prework/templates/prework.template.yaml'
       Parameters:
-        ClusterName: !Sub "EKSStack.Outputs.EKSClusterName"
+        ClusterName: !GetAtt "EKSStack.Outputs.EKSClusterName"
         PreworkScriptBucket: !Ref PreworkScriptBucket
         PreworkScriptObject: !Ref PreworkScriptObject
         JobName: !Ref JobName

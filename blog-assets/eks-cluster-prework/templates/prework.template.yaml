@@ -8,7 +8,7 @@ Parameters:
     Default: aws-quickstart
   PreworkScriptObject:
     Type: String
-    Default: "quickstart-examples/samples/eks-cluster-prework/scripts/pw-script.sh"
+    Default: "quickstart-examples/blog-assets/eks-cluster-prework/scripts/pw-script.sh"
   JobName:
     Type: String
     Default: example-job
@@ -32,12 +32,12 @@ Resources:
               {
                 "Effect": "Allow",
                 "Principal": {
-                  "Federated": "arn:aws:iam::${AWS::AccountId}:oidc-provider/${GetOIDCProvider}"
+                  "Federated": "arn:aws:iam::${AWS::AccountId}:oidc-provider/${OIDCProvider}"
                 },
                 "Action": "sts:AssumeRoleWithWebIdentity",
                 "Condition": {
                   "StringEquals": {
-                    "${GetOIDCProvider}:sub": "system:serviceaccount:${NameSpace}:${ResourceName}"
+                    "${OIDCProvider}:sub": "system:serviceaccount:${NameSpace}:${ResourceName}"
                   }
                 }
               }
@@ -169,6 +169,7 @@ Resources:
                     sleep 15;
                     export AWS_REGION=${AWS::Region};
                     export NS=${NameSpace};
+                    yum install -y aws-cli;
                     aws sts get-caller-identity;
                     aws s3 cp ${!S3_SCRIPT_URL} ./prework-script.sh &&
                     chmod +x ./prework-script.sh &&
