@@ -26,7 +26,7 @@ Parameters:
     Default: 'aws-quickstart'
   PreworkScriptObject:
     Type: String
-    Default: 'quickstart-examples/blog-assets/eks-cluster-prework/script/pw-script.sh'
+    Default: 'quickstart-examples/blog-assets/eks-cluster-prework/scripts/pw-script.sh'
 Resources:
   EKSStack:
     Type: AWS::CloudFormation::Stack
