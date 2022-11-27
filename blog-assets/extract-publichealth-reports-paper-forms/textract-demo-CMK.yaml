@@ -1,0 +1,119 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Security: KMS customer managed CMK for AWS services'
+Parameters:
+  Service:
+    Description: 'Which AWS service is allowed to use this CMK (upper-case names define use-cases)'
+    Type: String
+    AllowedValues:
+    - 'ALL_SERVICES'
+    - 'ROUTE53_DNSSEC'
+    - 'CLOUDTRAIL'
+    - connect
+    - dms
+    - ssm
+    - ec2
+    - elasticfilesystem
+    - es
+    - kinesis
+    - kinesisvideo
+    - lambda
+    - lex
+    - redshift
+    - rds
+    - secretsmanager
+    - ses
+    - s3
+    - importexport
+    - sqs
+    - workmail
+    - workspaces
+    Default: s3
+  KeySpec:
+    Description: 'Specify the type of the CMK.'
+    Type: String
+    AllowedValues:
+    - SYMMETRIC_DEFAULT
+    - RSA_2048
+    - RSA_3072
+    - RSA_4096
+    - ECC_NIST_P256
+    - ECC_NIST_P384
+    - ECC_NIST_P521
+    - ECC_SECG_P256K1
+    Default: SYMMETRIC_DEFAULT
+  KeyUsage:
+    Description: 'Which cryptographic operations should the CMK support?'
+    Type: String
+    AllowedValues:
+    - ENCRYPT_DECRYPT
+    - SIGN_VERIFY
+    Default: ENCRYPT_DECRYPT
+Conditions:
+  HasServiceAllServices: !Equals [!Ref Service, 'ALL_SERVICES']
+  HasSymmetricKey: !Equals [!Ref KeySpec, 'SYMMETRIC_DEFAULT']
+Resources:
+  Key:
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Type: 'AWS::KMS::Key'
+    Properties:
+      EnableKeyRotation: !If [HasSymmetricKey, true, false]
+      KeySpec: !Ref KeySpec
+      KeyUsage: !Ref KeyUsage
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+          Action: 'kms:*'
+          Resource: '*'
+        - Effect: Allow
+          Principal:
+            AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:role/Admin'
+          Action:        
+            - 'kms:Create*'
+            - "kms:Describe*"
+            - "kms:Enable*"
+            - "kms:List*"
+            - "kms:Put*"
+            - "kms:Update*"
+            - "kms:Revoke*"
+            - "kms:Disable*"
+            - "kms:Get*"
+            - "kms:Delete*"
+            - "kms:TagResource"
+            - "kms:UntagResource"
+            - "kms:ScheduleKeyDeletion"
+            - "kms:CancelKeyDeletion"
+          Resource: '*'
+        - Effect: Allow
+          Principal:
+              Service: ['s3.amazonaws.com','ses.amazonaws.com']
+          Action:
+            - 'kms:Decrypt'
+            - 'kms:GenerateDataKey*'
+          Resource: '*'
+  KeyAlias:
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Type: 'AWS::KMS::Alias'
+    Properties:
+      AliasName: !Sub 'alias/idp/${AWS::StackName}'
+      TargetKeyId: !Ref Key
+Outputs:
+  KeyAliasName:
+    Description: 'Key Alias'
+    Value: !Ref KeyAlias
+    Export:
+      Name: 'KeyAliasName'   
+  KeyId:
+    Description: 'Key id'
+    Value: !Ref Key
+    Export:
+      Name: 'KeyId'  
+  KeyArn:
+    Description: 'Key ARN'
+    Value: !GetAtt 'Key.Arn'
+    Export:
+      Name: 'KeyArn'   

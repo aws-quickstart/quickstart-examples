@@ -1,0 +1,160 @@
+AWSTemplateFormatVersion: 2010-09-09
+Resources:
+  DomainReceiptRule:
+    Type: 'AWS::SES::ReceiptRule'
+    Properties:
+      Rule:
+        Actions:
+          - S3Action:
+              BucketName: !Ref RawEmailMessagesS3Bucket
+              ObjectKeyPrefix: ""
+              TopicArn: !Ref IncomingEmailSNSTopic
+        Enabled: true
+        Name: !Sub "${AWS::StackName}-rule"
+        Recipients:
+          - !Ref EmailID
+        ScanEnabled: true
+      RuleSetName: !Ref DomainReceiptRuleSet
+    DependsOn:
+      - DomainReceiptRuleSet
+      - RawEmailMessagesSESPolicy
+      - IncomingEmailSNSTopic
+  RawEmailMessagesS3Bucket:
+    Type: 'AWS::S3::Bucket' 
+    DeletionPolicy: Retain
+    DependsOn:
+      - S3BucketLogs    
+    Properties:
+      BucketName: !Sub textract-demo-rawemails-${AWS::AccountId}
+      BucketEncryption:
+              ServerSideEncryptionConfiguration:
+               - ServerSideEncryptionByDefault:
+                  SSEAlgorithm: AES256
+      AccessControl: BucketOwnerFullControl
+      LoggingConfiguration:
+        DestinationBucketName: !Ref S3BucketLogs
+        LogFilePrefix: !Sub '/logs/!Sub textract-demo-docupload-${AWS::Region}-${AWS::AccountId}/'       
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        -
+          Key: Purpose
+          Value: Raw emails         
+  DomainReceiptRuleSet:
+    Type: 'AWS::SES::ReceiptRuleSet'
+    Properties:
+      RuleSetName: !Sub "${AWS::StackName}-rule-set"
+  RawEmailMessagesSESPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref RawEmailMessagesS3Bucket
+      PolicyDocument:
+        Statement:
+          - Action:
+              - 's3:PutObject'
+            Effect: Allow
+            Resource: !Join [ '', [ 'arn:aws:s3:::', !Ref RawEmailMessagesS3Bucket, '/*' ] ]
+            Principal:
+              Service: ses.amazonaws.com
+            Condition:
+              StringEquals:
+                'aws:Referer': !Ref 'AWS::AccountId'
+    DependsOn:
+      - RawEmailMessagesS3Bucket
+  S3BucketLogs:
+    Type: AWS::S3::Bucket
+    Metadata:
+        cfn_nag:
+            rules_to_suppress:
+            - id: W35
+              reason: "This Bucket is for access logging from other buckets."       
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: !Sub textract-demo-access-logs-${AWS::Region}-${AWS::AccountId}
+      AccessControl: LogDeliveryWrite
+      BucketEncryption:
+              ServerSideEncryptionConfiguration:
+               - ServerSideEncryptionByDefault:
+                  SSEAlgorithm: AES256     
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        -
+          Key: Description
+          Value: S3 Access Logs
+  S3BucketLogsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref S3BucketLogs
+      PolicyDocument:
+        Id: MyPolicy
+        Version: 2012-10-17
+        Statement:
+          - Sid: AllowWrite
+            Effect: Allow
+            Principal:
+              Service: 
+                - "s3.amazonaws.com"
+            Action: 's3:PutObject*'
+            Resource: !Sub 'arn:aws:s3:::${S3BucketLogs}/*'        
+  IncomingEmailSNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: !Sub "${AWS::StackName}-email-received"
+      TopicName: !Sub "${AWS::StackName}-email-received"
+      KmsMasterKeyId: !ImportValue KeyAliasName
+  IncomingEmailSNSTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref IncomingEmailSNSTopic
+      PolicyDocument:
+        Id: IncomingEmailSNSTopicPolicy
+        Version: '2012-10-17'
+        Statement:
+          -
+            Sid: SESTriggerAccess
+            Effect: Allow
+            Principal:
+              Service:
+                - 'ses.amazonaws.com'
+            Action:
+              - 'sns:Publish'
+              - 'SNS:GetTopicAttributes' 
+              - 'SNS:SetTopicAttributes'
+              - 'SNS:AddPermission' 
+              - 'sns:RemovePermission'
+              - 'SNS:DeleteTopic' 
+              - 'SNS:Subscribe'
+              - 'SNS:ListSubscriptionsByTopic'   
+            Resource:
+              - !Ref IncomingEmailSNSTopic
+            Condition:
+              StringEquals:
+                 'AWS:SourceAccount': !Ref 'AWS::AccountId'               
+Parameters:
+  EmailID:
+    Type: String
+    Description: Email ID to receive the email
+Outputs:
+  IncomingEmailSNSTopic:
+    Description: ARN of the incoming email notification topic
+    Value: !Ref IncomingEmailSNSTopic
+    Export:
+      Name: !Sub "${AWS::StackName}-IncomingEmailSNSTopic"
+  RawEmailsS3BucketARN:
+    Description: ARN of the Raw Emails S3Bucket
+    Value: !GetAtt RawEmailMessagesS3Bucket.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-RawEmailsS3BucketARN"
+  S3BucketLogs:
+    Description: S3 Bucket Logs Bucket Name
+    Value: !Ref S3BucketLogs
+    Export:
+      Name: !Sub "${AWS::StackName}-S3BucketLogs"      

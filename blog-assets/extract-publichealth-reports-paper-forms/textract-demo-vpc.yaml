@@ -1,0 +1,185 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: textract-email-attachments-demo VPC Setup
+Resources:
+  FlowLogRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: 'vpc-flow-logs.amazonaws.com'
+          Action: 'sts:AssumeRole'
+      #PermissionsBoundary: !If [HasPermissionsBoundary, !Ref PermissionsBoundary, !Ref 'AWS::NoValue']
+      Policies:
+      - PolicyName: 'flowlogs-policy'
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - 'logs:CreateLogStream'
+            - 'logs:PutLogEvents'
+            - 'logs:DescribeLogGroups'
+            - 'logs:DescribeLogStreams'
+            Resource: !GetAtt 'LogGroup.Arn'
+  LogGroup:
+    Type: 'AWS::Logs::LogGroup'
+    Metadata:
+        cfn_nag:
+            rules_to_suppress:
+            - id: W84
+              reason: "This is a demo VPC for testing documet processing solution"        
+    Properties:
+      RetentionInDays: 14  
+      #KmsKeyId: !ImportValue KeyArn
+  MyFlowLog:
+      Type: AWS::EC2::FlowLog
+      Properties:
+        DeliverLogsPermissionArn: !GetAtt FlowLogRole.Arn
+        LogGroupName: FlowLogsGroup
+        ResourceId: !Ref ComputeEnvVPC
+        ResourceType: VPC
+        TrafficType: ALL
+  ComputeEnvVPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: !Ref CIDR
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}"
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}"
+  AttachInternetGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref ComputeEnvVPC
+      InternetGatewayId: !Ref InternetGateway
+  PrivateSubnetA:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [ 0, !GetAZs ]
+      CidrBlock: !Select [ 0, !Cidr [ !Ref CIDR, 4, 8 ] ]
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref ComputeEnvVPC
+      Tags:
+        - Key: Name
+          Value: !Sub [ "${AWS::StackName}-private-${az}", { az: !Select [ 0, !GetAZs ] } ]
+  PrivateSubnetARouteTable:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnetA
+  PrivateSubnetB:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [ 1, !GetAZs ]
+      CidrBlock: !Select [ 1, !Cidr [ !Ref CIDR, 4, 8 ] ]
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref ComputeEnvVPC
+      Tags:
+        - Key: Name
+          Value: !Sub [ "${AWS::StackName}-private-${az}", { az: !Select [ 1, !GetAZs ] } ]
+  PrivateSubnetBRouteTable:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnetB
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+        - { Key: Name, Value: !Sub "${AWS::StackName}-private" }
+      VpcId: !Ref ComputeEnvVPC
+  PrivateRouteTableNAT:
+     Type: AWS::EC2::Route
+     Properties:
+        RouteTableId: !Ref PrivateRouteTable
+        DestinationCidrBlock: 0.0.0.0/0
+        NatGatewayId: !Ref NAT
+  PublicSubnetA:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [ 0, !GetAZs ]
+      CidrBlock: !Select [ 2, !Cidr [ !Ref CIDR, 4, 8 ] ]
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref ComputeEnvVPC
+      Tags:
+        - Key: Name
+          Value: !Sub [ "${AWS::StackName}-public-${az}", { az: !Select [ 0, !GetAZs ] } ]
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+        - { Key: Name, Value: !Sub "${AWS::StackName}-public" }
+      VpcId: !Ref ComputeEnvVPC
+  PublicSubnetARouteTable:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnetA
+  PublicRouteTableIGW:
+    Type: AWS::EC2::Route
+    DependsOn: AttachInternetGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+  NAT:
+     Type: AWS::EC2::NatGateway
+     Properties:
+        AllocationId: !GetAtt NatGatewayEIP.AllocationId
+        SubnetId: !Ref PublicSubnetA
+        Tags:
+        - Key: Name
+          Value: "${AWS::StackName}"
+  NatGatewayEIP:
+     DependsOn: AttachInternetGateway
+     Type: AWS::EC2::EIP
+     Properties:
+        Domain: vpc
+  S3Endpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      RouteTableIds:
+        - !Ref PrivateRouteTable
+        - !Ref PublicRouteTable
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.s3
+      VpcId: !Ref ComputeEnvVPC
+  DynamoEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      RouteTableIds:
+        - !Ref PrivateRouteTable
+        - !Ref PublicRouteTable
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.dynamodb
+      VpcId: !Ref ComputeEnvVPC
+Parameters:
+  CIDR:
+    Type: String
+    Default: 10.0.0.0/16
+    Description: CIDR of the VPC
+Outputs:
+  VPC:
+    Description: VPC id
+    Value: !Ref ComputeEnvVPC
+    Export:
+      Name: !Sub "${AWS::StackName}-VPC"
+  SubnetA:
+    Description: Lambda compute subnet A
+    Value: !Ref PrivateSubnetA
+    Export:
+      Name: !Sub "${AWS::StackName}-LambdaSubnetA"
+  SubnetB:
+    Description: Lambda compute subnet B
+    Value: !Ref PrivateSubnetB
+    Export:
+      Name: !Sub "${AWS::StackName}-LambdaSubnetB"
