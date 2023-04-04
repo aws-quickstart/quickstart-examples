@@ -82,11 +82,11 @@ Resources:
               - '-'
               - !Ref 'AWS::StackName'
       Components:
-        - ComponentArn: !Sub 'arn:${AWS::Partition}:imagebuilder:${AWSRegion}:aws:component/amazon-cloudwatch-agent-linux/x.x.x'
-        - ComponentArn: !Sub 'arn:${AWS::Partition}:imagebuilder:${AWSRegion}:aws:component/aws-cli-version-2-linux/x.x.x'
-        - ComponentArn: !Sub 'arn:${AWS::Partition}:imagebuilder:${AWSRegion}:aws:component/stig-build-linux-high/x.x.x'
-        - ComponentArn: !GetAtt 'SetLocaleComponent.Arn'
         - ComponentArn: !GetAtt 'YumUpdateComponent.Arn'
+        - ComponentArn: !GetAtt 'SetLocaleComponent.Arn'
+        - ComponentArn: !Sub 'arn:${AWS::Partition}:imagebuilder:${AWSRegion}:aws:component/aws-cli-version-2-linux/x.x.x'
+        - ComponentArn: !Sub 'arn:${AWS::Partition}:imagebuilder:${AWSRegion}:aws:component/amazon-cloudwatch-agent-linux/x.x.x'
+        - ComponentArn: !Sub 'arn:${AWS::Partition}:imagebuilder:${AWSRegion}:aws:component/stig-build-linux-low/x.x.x'
       ParentImage: !Ref 'BaseImageId'
       Version: !Sub '${Version}'
       WorkingDirectory: /opt/aws/amibuilder/
@@ -190,7 +190,7 @@ Resources:
       Platform: Linux
       Version: !Sub '${Version}'
       Data: !Sub |
-        name: setlocale global
+        name: rpm update
         description: Current version - ${Version}
         schemaVersion: 1.0
         phases:
@@ -207,7 +207,7 @@ Resources:
                 onFailure: Continue
                 inputs:
                   commands:
-                    - yum update -y
+                    - dnf update -y
   InstanceSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:

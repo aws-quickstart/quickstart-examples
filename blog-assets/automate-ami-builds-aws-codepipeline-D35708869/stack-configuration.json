@@ -7,6 +7,6 @@
     "SSHLocation" : "0.0.0.0/0",
     "Architecture" : "arm64",
     "InstanceType" : "t4g.large",
-    "BaseImageId" : "ami-0331b64d8b89b4fef"
+    "BaseImageId" : "ami-08182e5c2a7db8405"
   }
 }
