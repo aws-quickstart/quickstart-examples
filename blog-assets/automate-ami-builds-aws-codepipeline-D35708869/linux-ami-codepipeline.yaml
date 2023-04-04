@@ -1,0 +1,239 @@
+---
+Description: |
+  AWS CloudFormation Template for Continuous Delivery: This template builds an AWS CodePipeline pipeline that implements a continuous delivery release process using an AWS CloudFormation stack that builds custom EC2 AMIs using EC2 ImageBuilder. Submit the CloudFormation template to CodeCommit and the pipeline will take the artifacts to automatically create the stack, run the pipeline, put an approval step, and clean up the stack. (qs-1tkj0sj93)
+Parameters:
+  Email:
+    Default: my@email
+    Description: The email address where CodePipeline sends pipeline notifications
+    Type: String
+  S3BucketName:
+    Type: String
+    Default: test-ami-builder-blog-pipeline
+    Description: The S3 bucket for the temporary artifacts used in CodePipeline
+  CodeCommitRepositoryName:
+    Type: String
+    Default: test-ami-builder-blog-linux-pipeline
+    Description: name of the codecommit repository that must hold the files "linux-ami-imagebuilder.yaml" and "stack-configuration.json"
+  PipelineName:
+    Default: test-ami-builder-blog-linux-pipeline
+    Description: A name for pipeline
+    Type: String
+  TemplateFileName:
+    Default: linux-ami-imagebuilder.yaml
+    Description: The file name of the template
+    Type: String
+  StackName:
+    Default: test-amazon-linux2-arm64-ami
+    Description: A name for the stack which will also be the AMI name to be used in EC2
+    Type: String
+  StackConfig:
+    Default: stack-configuration.json
+    Description: The configuration file name for the stack
+    Type: String
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: CodePipeline Settings
+        Parameters:
+          - PipelineName
+          - S3BucketName
+          - Email
+      - Label:
+          default: Stack Settings
+        Parameters:
+          - TemplateFileName
+          - StackName
+          - StackConfig
+Resources:
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName:
+        Fn::Join:
+          - '-'
+          - - !Ref 'S3BucketName'
+            - Fn::Select:
+                - 4
+                - Fn::Split:
+                    - '-'
+                    - Fn::Select:
+                        - 2
+                        - Fn::Split:
+                            - /
+                            - Ref: AWS::StackId
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+    DeletionPolicy: Delete
+  CodeCommitRepo:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName: !Ref 'CodeCommitRepositoryName'
+  CodePipelineSNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      Subscription:
+        - Endpoint: !Ref 'Email'
+          Protocol: email
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      ArtifactStore:
+        Location: !Ref 'S3Bucket'
+        Type: S3
+      DisableInboundStageTransitions: []
+      Name: !Ref 'PipelineName'
+      RoleArn: !GetAtt 'PipelineRole.Arn'
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: Source
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeCommit
+                Version: '1'
+              Configuration:
+                BranchName: main
+                OutputArtifactFormat: CODE_ZIP
+                RepositoryName: !Ref 'CodeCommitRepositoryName'
+              RunOrder: 1
+              OutputArtifacts:
+                - Name: TemplateSource
+        - Name: Build
+          Actions:
+            - Name: CreateStack
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              InputArtifacts:
+                - Name: TemplateSource
+              Configuration:
+                ActionMode: REPLACE_ON_FAILURE
+                RoleArn: !GetAtt 'CFNRole.Arn'
+                StackName: !Ref 'StackName'
+                Capabilities: CAPABILITY_NAMED_IAM
+                TemplateConfiguration: !Sub 'TemplateSource::${StackConfig}'
+                TemplatePath: !Sub 'TemplateSource::${TemplateFileName}'
+              RunOrder: 1
+            - Name: ApproveStack
+              ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Provider: Manual
+                Version: '1'
+              Configuration:
+                NotificationArn: !Ref 'CodePipelineSNSTopic'
+                CustomData: !Sub 'Perform checks on the AMI built and after approval the stack ${StackName} will be deleted'
+              RunOrder: 2
+            - Name: DeleteStack
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Configuration:
+                ActionMode: DELETE_ONLY
+                RoleArn: !GetAtt 'CFNRole.Arn'
+                StackName: !Ref 'StackName'
+              RunOrder: 3
+  CFNRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - cloudformation.amazonaws.com
+        Version: '2012-10-17'
+      Path: /
+      Policies:
+        - PolicyName: CloudFormationRole
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - ec2:*
+                Effect: Allow
+                Resource: '*'
+        - PolicyName: AdditionalPerms
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - iam:GetRole
+                  - iam:CreateRole
+                  - iam:DetachRolePolicy
+                  - iam:AttachRolePolicy
+                  - iam:DeleteRole
+                  - iam:PassRole
+                  - iam:GetPolicy
+                  - iam:ListPolicyVersions
+                  - iam:CreatePolicy
+                  - iam:DeletePolicy
+                  - iam:CreateInstanceProfile
+                  - iam:DeleteInstanceProfile
+                  - iam:AddRoleToInstanceProfile
+                  - iam:RemoveRoleFromInstanceProfile
+                  - imagebuilder:*
+                Effect: Allow
+                Resource: '*'
+  PipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+        Version: '2012-10-17'
+      Path: /
+      Policies:
+        - PolicyName: CodePipelineAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - cloudformation:CreateStack
+                  - cloudformation:DescribeStacks
+                  - cloudformation:DeleteStack
+                  - cloudformation:UpdateStack
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:SetStackPolicy
+                  - iam:PassRole
+                  - sns:Publish
+                Effect: Allow
+                Resource: '*'
+        - PolicyName: codecommit
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - codecommit:Get*
+                  - codecommit:UploadArchive
+                Resource:
+                  - !GetAtt 'CodeCommitRepo.Arn'
+        - PolicyName: s3-artifacts
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                  - s3:PutObject
+                Resource:
+                  - !GetAtt 'S3Bucket.Arn'
+                  - !Sub '${S3Bucket.Arn}/*'

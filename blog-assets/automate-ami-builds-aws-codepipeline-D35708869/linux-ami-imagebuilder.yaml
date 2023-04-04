@@ -1,0 +1,253 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: |
+  This template builds an EC2 AMI based on Amazon Linux2 ARM64 and installs software to demonstrate an AWS CodePipeline driven AMI builing use-case using EC2 ImageBuilder. The automatically installed software includes the following packages: amazon-cloudwatch-agent-linux, aws-cli-version-2-linux, the stig-build-linux-high (https://docs.aws.amazon.com/imagebuilder/latest/userguide/toe-stig.html), and two custom components executing bash code. (qs-1tkj0sj93)
+Parameters:
+  AWSRegion:
+    Type: String
+    Description: Define in which region you want to build and deploy the pipeline
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VpcId of your existing Virtual Private Cloud (VPC) to be used to build the AMI
+    ConstraintDescription: must be the VPC Id of an existing VPC
+  SubnetId:
+    Type: String
+    Description: SubnetId of an existing subnet in your VPC
+    ConstraintDescription: must be an existing subnet in the selected VPC
+  SSHKeyPairName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instances
+    ConstraintDescription: must be the name of an existing EC2 KeyPair
+  SSHLocation:
+    Type: String
+    Description: The IP address range that can be used to SSH to the EC2 instances
+    MinLength: '9'
+    MaxLength: '18'
+    AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+    Default: 0.0.0.0/0
+  Version:
+    Type: String
+    Description: Version number for the ImageBuilder Component, that the service needs, but the components will be removed after pipeline completion.
+    Default: 0.0.1
+  Architecture:
+    Type: String
+    Description: Select between x86 and ARM instances
+    Default: arm64
+    AllowedValues:
+      - x86
+      - arm64
+  InstanceType:
+    Type: String
+    Description: Instance Type for building the instances
+    Default: t4g.micro
+    AllowedValues:
+      - t2.micro
+      - t3.nano
+      - t3a.nano
+      - t3.large
+      - t3.2xlarge
+      - t4g.nano
+      - t4g.micro
+      - t4g.small
+      - t4g.medium
+      - t4g.large
+      - t4g.xlarge
+      - t4g.2xlarge
+  BaseImageId:
+    Type: String
+    Description: define the base AMI ID to build upon
+Resources:
+  LinuxImage:
+    Type: AWS::ImageBuilder::Image
+    Properties:
+      ImageRecipeArn: !GetAtt 'LinuxImageRecipe.Arn'
+      InfrastructureConfigurationArn: !GetAtt 'InfrastructureConfiguration.Arn'
+      EnhancedImageMetadataEnabled: true
+  LinuxImageRecipe:
+    Type: AWS::ImageBuilder::ImageRecipe
+    Properties:
+      Name: !Sub
+        - ${AWS::StackName}-Image-${Uniqueval}
+        - Uniqueval: !Select
+            - 2
+            - !Split
+              - /
+              - !Ref 'AWS::StackId'
+      Description: !Sub
+        - ${ShortName} Image (${Architecture}) version ${Version}
+        - ShortName: !Select
+            - 0
+            - !Split
+              - '-'
+              - !Ref 'AWS::StackName'
+      Components:
+        - ComponentArn: !Sub 'arn:${AWS::Partition}:imagebuilder:${AWSRegion}:aws:component/amazon-cloudwatch-agent-linux/x.x.x'
+        - ComponentArn: !Sub 'arn:${AWS::Partition}:imagebuilder:${AWSRegion}:aws:component/aws-cli-version-2-linux/x.x.x'
+        - ComponentArn: !Sub 'arn:${AWS::Partition}:imagebuilder:${AWSRegion}:aws:component/stig-build-linux-high/x.x.x'
+        - ComponentArn: !GetAtt 'SetLocaleComponent.Arn'
+        - ComponentArn: !GetAtt 'YumUpdateComponent.Arn'
+      ParentImage: !Ref 'BaseImageId'
+      Version: !Sub '${Version}'
+      WorkingDirectory: /opt/aws/amibuilder/
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          VirtualName: vol2
+          Ebs:
+            DeleteOnTermination: true
+            VolumeSize: 20
+            VolumeType: gp2
+  InfrastructureConfiguration:
+    Type: AWS::ImageBuilder::InfrastructureConfiguration
+    Properties:
+      InstanceProfileName: !Ref 'InstanceProfile'
+      InstanceTypes:
+        - !Sub '${InstanceType}'
+      Name: !Sub
+        - ${AWS::StackName}-InfraConfig-${Uniqueval}
+        - Uniqueval: !Select
+            - 2
+            - !Split
+              - /
+              - !Ref 'AWS::StackId'
+      KeyPair: !Ref 'SSHKeyPairName'
+      TerminateInstanceOnFailure: false
+      SecurityGroupIds:
+        - !GetAtt 'InstanceSecurityGroup.GroupId'
+      SubnetId: !Ref 'SubnetId'
+  SetLocaleComponent:
+    Type: AWS::ImageBuilder::Component
+    Properties:
+      ChangeDescription: !Sub
+        - Update ${ShortName} Image (${Architecture}) to version ${Version}
+        - ShortName: !Select
+            - 0
+            - !Split
+              - '-'
+              - !Ref 'AWS::StackName'
+      Description: !Sub
+        - ${ShortName} Component configures the LC_CTYPE locale
+        - ShortName: !Select
+            - 0
+            - !Split
+              - '-'
+              - !Ref 'AWS::StackName'
+      Name: !Sub
+        - ${AWS::StackName}-Component-Locale-${Uniqueval}
+        - Uniqueval: !Select
+            - 2
+            - !Split
+              - /
+              - !Ref 'AWS::StackId'
+      Platform: Linux
+      Version: !Sub '${Version}'
+      Data: !Sub |
+        name: setlocale global
+        description: Current version - ${Version}
+        schemaVersion: 1.0
+        phases:
+          - name: build
+            steps:
+              - name: Locale
+                action: ExecuteBash
+                onFailure: Continue
+                inputs:
+                  commands:
+                    - echo "LANG=en_US.utf-8" >> /etc/environment
+                    - echo "LC_ALL=en_US.utf-8" >> /etc/environment
+                    - localectl set-locale LANG=en_US.UTF-8
+          - name: validate
+            steps:
+              - name: checkLocale
+                action: ExecuteBash
+                inputs:
+                  commands:
+                    - localectl status
+  YumUpdateComponent:
+    Type: AWS::ImageBuilder::Component
+    Properties:
+      ChangeDescription: !Sub
+        - Update ${ShortName} Image (${Architecture}) to version ${Version}
+        - ShortName: !Select
+            - 0
+            - !Split
+              - '-'
+              - !Ref 'AWS::StackName'
+      Description: !Sub
+        - ${ShortName} Component performs a RPM package update
+        - ShortName: !Select
+            - 0
+            - !Split
+              - '-'
+              - !Ref 'AWS::StackName'
+      Name: !Sub
+        - ${AWS::StackName}-Component-YumUpdate-${Uniqueval}
+        - Uniqueval: !Select
+            - 2
+            - !Split
+              - /
+              - !Ref 'AWS::StackId'
+      Platform: Linux
+      Version: !Sub '${Version}'
+      Data: !Sub |
+        name: setlocale global
+        description: Current version - ${Version}
+        schemaVersion: 1.0
+        phases:
+          - name: build
+            steps:
+              - name: Fail
+                onFailure: Continue
+                action: ExecuteBash
+                inputs:
+                  commands:
+                    - echo 1
+              - name: Locale
+                action: ExecuteBash
+                onFailure: Continue
+                inputs:
+                  commands:
+                    - yum update -y
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref 'VpcId'
+      GroupName: !Sub
+        - ${AWS::StackName}-SG-${Uniqueval}
+        - Uniqueval: !Select
+            - 2
+            - !Split
+              - /
+              - !Ref 'AWS::StackId'
+      GroupDescription: Enable SSH access via port 22
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref 'SSHLocation'
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref 'EC2Role'
+  EC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${AWS::StackName}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: !Sub 'ec2.${AWS::URLSuffix}'
+      ManagedPolicyArns:
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore'
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/EC2InstanceProfileForImageBuilder'
+Outputs:
+  ImageArn:
+    Description: Reference to EC2 Image Builder Output Arn
+    Value: !GetAtt 'LinuxImage.Arn'
+  ImageId:
+    Description: Reference to EC2 Image Builder Output ImageId
+    Value: !GetAtt 'LinuxImage.ImageId'

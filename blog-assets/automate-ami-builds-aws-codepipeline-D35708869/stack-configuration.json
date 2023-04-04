@@ -1,0 +1,12 @@
+{
+  "Parameters" : {
+    "AWSRegion" : "eu-west-1",
+    "VpcId" : "vpc-12345678",
+    "SubnetId" : "subnet-12345678",
+    "SSHKeyPairName" : "sshkeypairname",
+    "SSHLocation" : "0.0.0.0/0",
+    "Architecture" : "arm64",
+    "InstanceType" : "t4g.large",
+    "BaseImageId" : "ami-0331b64d8b89b4fef"
+  }
+}
