@@ -145,29 +145,63 @@ Resources:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
+        Version: '2012-10-17'
         Statement:
-          - Action:
-              - sts:AssumeRole
-            Effect: Allow
+          - Effect: Allow
             Principal:
               Service:
                 - cloudformation.amazonaws.com
-        Version: '2012-10-17'
+            Action:
+              - sts:AssumeRole
       Path: /
       Policies:
         - PolicyName: CloudFormationRole
           PolicyDocument:
             Version: '2012-10-17'
-            Statement:
-              - Action:
-                  - ec2:*
-                Effect: Allow
-                Resource: '*'
+            Statement:  
+              - Effect: Allow
+                Action:
+                  - ec2:ImportKeyPair
+                  - ec2:ImportVolume
+                  - ec2:ImportImage
+                  - ec2:RegisterImage
+                  - ec2:CreateImage
+                  - ec2:ExportImage
+                  - ec2:DescribeImages
+                  - ec2:DescribeVpcs
+                  - ec2:DescribeVolumeAttribute
+                  - ec2:DescribeInstances
+                  - ec2:DescribeKeyPairs
+                  - ec2:DescribeSecurityGroups
+                  - ec2:DescribeSecurityGroupRules
+                  - ec2:DescribeSecurityGroupReferences
+                  - ec2:DescribeIamInstanceProfileAssociations
+                  - ec2:GetResourcePolicy
+                  - ec2:GetConsoleOutput
+                  - ec2:ModifyInstanceAttribute
+                  - ec2:ModifyVolumeAttribute
+                  - ec2:ModifySecurityGroupRules
+                  - ec2:ModifyVolume
+                  - ec2:ReportInstanceStatus
+                  - ec2:ReplaceIamInstanceProfileAssociation
+                  - ec2:AssociateIamInstanceProfile
+                  - ec2:DisassociateIamInstanceProfile
+                  - ec2:DeleteSecurityGroup
+                  - ec2:ModifySecurityGroupRules
+                  - ec2:CreateSecurityGroup
+                  - ec2:AuthorizeSecurityGroupIngress
+                  - ec2:AuthorizeSecurityGroupEgress
+                  - ec2:UpdateSecurityGroupRuleDescriptionsEgress
+                  - ec2:RevokeSecurityGroupIngress
+                  - ec2:RevokeSecurityGroupEgress
+                  - ec2:UpdateSecurityGroupRuleDescriptionsIngress
+                Resource: "*"
         - PolicyName: AdditionalPerms
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
-              - Action:
+              - Effect: Allow
+                Action:
                   - iam:GetRole
                   - iam:CreateRole
                   - iam:DetachRolePolicy
@@ -180,11 +214,48 @@ Resources:
                   - iam:DeletePolicy
                   - iam:CreateInstanceProfile
                   - iam:DeleteInstanceProfile
+                  - iam:GetInstanceProfile
                   - iam:AddRoleToInstanceProfile
                   - iam:RemoveRoleFromInstanceProfile
-                  - imagebuilder:*
-                Effect: Allow
-                Resource: '*'
+                  - imagebuilder:GetDistributionConfiguration
+                  - imagebuilder:GetComponent
+                  - imagebuilder:GetComponentPolicy
+                  - imagebuilder:GetInfrastructureConfiguration
+                  - imagebuilder:GetImage
+                  - imagebuilder:GetImageRecipe
+                  - imagebuilder:ListDistributionConfigurations
+                  - imagebuilder:ListInfrastructureConfigurations
+                  - imagebuilder:ListImagePipelines
+                  - imagebuilder:ListComponents
+                  - imagebuilder:ListImageRecipes
+                  - imagebuilder:ListImages
+                  - imagebuilder:ListComponentBuildVersions
+                  - imagebuilder:ListTagsForResource
+                  - imagebuilder:CreateDistributionConfiguration
+                  - imagebuilder:CreateComponent
+                  - imagebuilder:CreateImageRecipe
+                  - imagebuilder:CreateImage
+                  - imagebuilder:CreateInfrastructureConfiguration
+                  - imagebuilder:DeleteDistributionConfiguration
+                  - imagebuilder:DeleteComponent
+                  - imagebuilder:DeleteImage
+                  - imagebuilder:DeleteImageRecipe
+                  - imagebuilder:DeleteInfrastructureConfiguration
+                  - imagebuilder:UntagResource
+                  - imagebuilder:ImportComponent
+                  - imagebuilder:PutComponentPolicy
+                  - imagebuilder:TagResource
+                  - imagebuilder:UpdateDistributionConfiguration
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:*'
+                  - !Sub 'arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*'
+                  - !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/*'
+                  - !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/*'
+                  - !Sub 'arn:${AWS::Partition}:imagebuilder:${AWS::Region}:${AWS::AccountId}:component/*'
+                  - !Sub 'arn:${AWS::Partition}:imagebuilder:${AWS::Region}:${AWS::Partition}:component/*/*/*'
+                  - !Sub 'arn:${AWS::Partition}:imagebuilder:${AWS::Region}:${AWS::AccountId}:image/*'
+                  - !Sub 'arn:${AWS::Partition}:imagebuilder:${AWS::Region}:${AWS::AccountId}:image-recipe/*/*'
+                  - !Sub 'arn:${AWS::Partition}:imagebuilder:${AWS::Region}:${AWS::AccountId}:infrastructure-configuration/*'
   PipelineRole:
     Type: AWS::IAM::Role
     Properties:
@@ -214,7 +285,10 @@ Resources:
                   - iam:PassRole
                   - sns:Publish
                 Effect: Allow
-                Resource: '*'
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/*/*'
+                  - !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:*'
+                  - !Sub 'arn:${AWS::Partition}:sns:${AWS::Region}:${AWS::AccountId}:*'
         - PolicyName: codecommit
           PolicyDocument:
             Version: '2012-10-17'

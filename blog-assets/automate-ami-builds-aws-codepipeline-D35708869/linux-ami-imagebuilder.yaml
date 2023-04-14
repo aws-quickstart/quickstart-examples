@@ -225,6 +225,11 @@ Resources:
           FromPort: 22
           ToPort: 22
           CidrIp: !Ref 'SSHLocation'
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: 0
+          ToPort: 65535
+          CidrIp: !Ref 'SSHLocation'
   InstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
