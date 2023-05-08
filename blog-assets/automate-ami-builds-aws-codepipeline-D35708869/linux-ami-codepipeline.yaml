@@ -1,4 +1,5 @@
 ---
+AWSTemplateFormatVersion: '2010-09-09'
 Description: |
   AWS CloudFormation Template for Continuous Delivery: This template builds an AWS CodePipeline pipeline that implements a continuous delivery release process using an AWS CloudFormation stack that builds custom EC2 AMIs using EC2 ImageBuilder. Submit the CloudFormation template to CodeCommit and the pipeline will take the artifacts to automatically create the stack, run the pipeline, put an approval step, and clean up the stack. (qs-1tkj0sj93)
 Parameters:
