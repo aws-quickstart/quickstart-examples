@@ -8,18 +8,14 @@ Parameters:
     Default: aws-quickstart
   PreworkScriptObject:
     Type: String
-    Default: "quickstart-examples/samples/eks-cluster-prework/scripts/pw-script.sh"
+    Default: "quickstart-examples/blog-assets/eks-cluster-prework/scripts/pw-script.sh"
   JobName:
     Type: String
-    Default: job-example
+    Default: example-job
     AllowedPattern: '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*'
     ConstraintDescription: "a lowercase RFC 1123 subdomain must consist of lower case
       alphanumeric characters, '-' or '.', and must start and end with an alphanumeric
       character"
-  OIDCProvider:
-    Type: String
-    Description: Amazon EKS cluster OIDC provider, without the protocol (e.g., oidc.eks.us-east-1.amazonaws.com/id/SADFASFFASFXCCVXCVSDFSDF).
-    Default: ""
   KubernetesNameSpace:
     Type: String
     Default: "prework-example"
@@ -49,6 +45,7 @@ Resources:
           }
         - NameSpace: !Ref KubernetesNameSpace
           ResourceName: !Sub "pw-service-account-${JobName}"
+          OIDCProvider: !Join [ '', !Split [ 'https://', !Ref 'GetOIDCProvider' ] ]
       Path: "/"
       Policies:
         - PolicyName: root
@@ -60,7 +57,13 @@ Resources:
                   - s3:GetObject
                   - s3:HeadObject
                 Resource:
-                  -  !Sub "arn:aws:s3:::${PreworkScriptBucket}/${PreworkScriptObject}"
+                  - !Sub "arn:${AWS::Partition}:s3:::${PreworkScriptBucket}/${PreworkScriptObject}"
+  GetOIDCProvider:
+    Type: Custom::GetOIDCProvider
+    Properties:
+      ServiceToken: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:eks-quickstart-ResourceReader"
+      AwsCliCommand: !Sub "eks describe-cluster --name ${ClusterName} --query 'cluster.identity.oidc.{issuer:issuer}'"
+      IdField: 'issuer'
   KubePreWorkNamespace:
     Type: "AWSQS::Kubernetes::Resource"
     Properties:
@@ -164,10 +167,9 @@ Resources:
                   args:
                   - >
                     sleep 15;
-                    yum update -y;
-                    yum install -y awscli;
                     export AWS_REGION=${AWS::Region};
                     export NS=${NameSpace};
+                    yum install -y aws-cli;
                     aws sts get-caller-identity;
                     aws s3 cp ${!S3_SCRIPT_URL} ./prework-script.sh &&
                     chmod +x ./prework-script.sh &&

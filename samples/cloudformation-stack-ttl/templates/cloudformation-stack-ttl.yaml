@@ -78,7 +78,7 @@ Resources:
         Variables:
           stackName: !Ref 'StackName'
       Handler: "index.handler"
-      Runtime: "python3.6"
+      Runtime: "python3.9"
       Timeout: "5"
       Role: !GetAtt DeleteCFNLambdaExecutionRole.Arn
   DeleteStackEventRule:
@@ -161,7 +161,7 @@ Resources:
                 status = cfnresponse.FAILED
                 cfnresponse.send(event, context, status, {}, None)
       Handler: "index.handler"
-      Runtime: "python3.6"
+      Runtime: "python3.9"
       Timeout: "5"
       Role: !GetAtt BasicLambdaExecutionRole.Arn
 
