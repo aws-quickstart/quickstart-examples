@@ -11,11 +11,11 @@ Parameters:
     Default: ""
   JobName:
     Type: String
-    Default: 'example-job'
+    Default: 'job-example'
   AvailabilityZones:
     Description: List of Availability Zones to use for the subnets in the VPC. Three
       Availability Zones are used for this deployment.
-    Type: List<AWS::EC2::AvailabilityZone::Name>
+    Type: List<AWS::EC2::AvailabilityZone::Name>  AvailabilityZones:
   NumberOfAZs:
     Type: String
     AllowedValues: ["2", "3"]
@@ -35,13 +35,17 @@ Resources:
       Parameters:
         # Cluster properties
         ProvisionBastionHost: Enabled
-        KeyPairName: !Ref KeyPairName
         RemoteAccessCIDR: !Ref AccessCIDR
         AvailabilityZones: !Join [ ',', !Ref 'AvailabilityZones' ]
-        NumberOfAZs: !Ref NumberOfAZs
         NodeInstanceType: t3.large
         NumberOfNodes: 1
         MaxNumberOfNodes: 1
+  GetOIDCProvider:
+    Type: Custom::GetOIDCProvider
+    Properties:
+      ServiceToken: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:eks-quickstart-ResourceReader"
+      AwsCliCommand: !Sub "eks describe-cluster --name ${EKSStack.Outputs.EKSClusterName} --query 'cluster.identity.oidc.{issuer:issuer}'"
+      IdField: 'issuer'
   PreworkStack:
     DependsOn: EKSStack
     Type: AWS::CloudFormation::Stack
