@@ -3,7 +3,7 @@ import random
 import string
 import logging
 import threading
-import requests
+import urllib3  # Added by EM
 import json
 from botocore.credentials import (
     AssumeRoleCredentialFetcher,
@@ -13,6 +13,8 @@ from botocore.credentials import (
 from botocore.session import Session
 from botocore.exceptions import ClientError
 
+
+http = urllib3.PoolManager()  # Added by EM
 
 cfn_states = {
     "failed": ["CREATE_FAILED", "ROLLBACK_IN_PROGRESS", "ROLLBACK_FAILED", "ROLLBACK_COMPLETE", "DELETE_FAILED",
@@ -83,9 +85,8 @@ def send(event, context, response_status, response_data, physical_resource_id, l
     }
 
     try:
-        response = requests.put(response_url,
-                                data=json_response_body,
-                                headers=headers)
+        response = http.request('PUT', response_url, headers=headers, body=json_response_body)
+
         logger.info("CloudFormation returned status code: " + response.reason)
     except Exception as e:
         logger.error("send(..) failed executing requests.put(..): " + str(e))
