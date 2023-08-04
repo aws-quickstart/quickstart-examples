@@ -305,9 +305,6 @@ def create(event, context):
     Create a cfn stack using an assumed role
     """
 
-    cfn_capabilities = []
-    if 'capabilities' in event['ResourceProperties'].keys():
-        cfn_capabilities = event['ResourceProperties']['Capabilities']
     cfn_client = boto3.client("cloudformation")
     params = get_cfn_parameters(event)
     prefix = event['ResourceProperties']['ParentStackId'].split("/")[1]
@@ -347,17 +344,21 @@ def update(event, context):
     Update a cfn stack using an assumed role
     """
     stack_id = event["PhysicalResourceId"]
-    cfn_capabilities = []
+    capabilities = []
     if 'capabilities' in event['ResourceProperties'].keys():
-        cfn_capabilities = event['ResourceProperties']['capabilities']
+        capabilities = event['ResourceProperties']['capabilities']
     cfn_client = get_client("cloudformation", event, context)
     physical_resource_id = stack_id
+    prefix = event['ResourceProperties']['ParentStackId'].split("/")[1]
+    parent_properties = cfn_client.describe_stacks(StackName=prefix)['Stacks'][0]
+    if 'Capabilities' in parent_properties.keys():
+        capabilities = parent_properties['Capabilities']
     try:
         cfn_client.update_stack(
             StackName=stack_id,
             TemplateURL=event['ResourceProperties']['TemplateURL'],
             Parameters=get_cfn_parameters(event),
-            Capabilities=cfn_capabilities,
+            Capabilities=capabilities,
             Tags=[{
                 'Key': 'ParentStackId',
                 'Value': event['ResourceProperties']['ParentStackId']
