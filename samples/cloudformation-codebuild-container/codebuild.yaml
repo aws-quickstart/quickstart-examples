@@ -120,6 +120,15 @@ Resources:
   LambdaZipsBucket:
     Type: AWS::S3::Bucket
     Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
       Tags: []
   CopyZips:
     Type: AWS::CloudFormation::CustomResource
@@ -200,7 +209,7 @@ Resources:
           - Name: IMAGE_REPO_NAME
             Value: !Ref ECRRepository
           - Name: IMAGE_TAG
-            Value: 'latest'  
+            Value: 'latest'
           - Name: url_path
             Value: 'placeholder'
           - Name: url_query
@@ -271,7 +280,7 @@ Resources:
       BuildProjectName: !Ref CodeBuildProject
       ECRRepository: !Ref ECRRepository
       # cfn_signal_url: is part of the event by default hence missing here
-      # cfn_stack_id: is part of the event by default 
+      # cfn_stack_id: is part of the event by default
       # cfn_request_id: also part of the event
       # cfn_logical_resource_id: also part of the event
       # Lambda function passes the above into the build project when invoking StartBuild
@@ -324,4 +333,4 @@ Resources:
             Action:
               - s3:GetObject
               - s3:PutObject
-            Resource: arn:aws:s3:::*  
+            Resource: arn:aws:s3:::*
