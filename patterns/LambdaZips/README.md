@@ -13,6 +13,16 @@ Resources:
   # Create a bucket in the local region
   LambdaZipsBucket:
     Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+      ServerSideEncryptionConfiguration:
+        - ServerSideEncryptionByDefault:
+            SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
   # Copy zip files from source bucket
   CopyZips:
     Type: Custom::CopyZips

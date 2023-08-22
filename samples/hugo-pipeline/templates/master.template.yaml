@@ -6,6 +6,10 @@ Resources:
   ArtifactBucket:
     Type: 'AWS::S3::Bucket'
     Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
       AccessControl: Private
       LifecycleConfiguration:
         Rules:
@@ -21,17 +25,21 @@ Resources:
   WebHostingBucket:
     Type: 'AWS::S3::Bucket'
     Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
       AccessControl: PublicRead
       BucketName: !Ref HostingBucketName
       WebsiteConfiguration:
         IndexDocument: index.html
   WebHostingBucketPolicy:
     Type: AWS::S3::BucketPolicy
-    Properties: 
+    Properties:
       Bucket: !Ref WebHostingBucket
       PolicyDocument:
         Statement:
-          - 
+          -
             Action:
               - "s3:GetObject"
             Effect: "Allow"
@@ -43,6 +51,15 @@ Resources:
                   - !Ref WebHostingBucket
                   - "/*"
             Principal: "*"
+          - Action: s3:*
+            Effect: Deny
+            Principal: '*'
+            Resource:
+              - arn:aws:s3:::bucketname/*
+              - arn:aws:s3:::bucketname
+            Condition:
+              Bool:
+                aws:SecureTransport: false
   IAMRoleStack:
     Type: 'AWS::CloudFormation::Stack'
     DependsOn:
@@ -62,10 +79,10 @@ Resources:
         https://${S3BucketName}.s3.amazonaws.com/${S3KeyPrefix}templates/pipeline.template.yaml
       Parameters:
         ArtifactBucket: !Ref ArtifactBucket
-        CodePipelineRoleArn: !GetAtt 
+        CodePipelineRoleArn: !GetAtt
           - IAMRoleStack
           - Outputs.CodePipelineRoleArn
-        CodeBuildRoleArn: !GetAtt 
+        CodeBuildRoleArn: !GetAtt
           - IAMRoleStack
           - Outputs.CodeBuildRoleArn
         CloudfrontDistId: '!Ref CloudfrontDistId'
@@ -73,7 +90,7 @@ Resources:
         WebsiteBucket: !Ref WebHostingBucket
         RepoName: !Ref RepoName
         RepoBranch: 'master'
-  
+
 Parameters:
   RepoName:
     Description: Enter the repository name to host hugo website content
@@ -118,9 +135,9 @@ Outputs:
     Description: Name of S3 bucket to hold website content
   CodePipelineURL:
     Description: The URL of the created Pipeline
-    Value: !Sub 
+    Value: !Sub
       - >-
         https://${AWS::Region}.console.aws.amazon.com/codepipeline/home?region=${AWS::Region}#/view/${CodePipelineName}
-      - CodePipelineName: !GetAtt 
+      - CodePipelineName: !GetAtt
           - CodePipelineStack
           - Outputs.CodePipelineName
