@@ -63,6 +63,8 @@ Resources:
                         - Fn::Split:
                             - /
                             - Ref: AWS::StackId
+      VersioningConfiguration:
+        Status: Enabled
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:

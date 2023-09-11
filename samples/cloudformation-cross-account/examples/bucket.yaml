@@ -18,6 +18,8 @@ Resources:
       Tags:
       - Key: cross-account
         Value: !Ref Tag
+      VersioningConfiguration:
+        Status: Enabled
 Outputs:
   AccountId:
     Value: !Ref AWS::AccountId
