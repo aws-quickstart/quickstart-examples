@@ -6,6 +6,8 @@ Resources:
   ArtifactBucket:
     Type: 'AWS::S3::Bucket'
     Properties:
+      VersioningConfiguration:
+        Status: Enabled
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
@@ -15,8 +17,6 @@ Resources:
         Rules:
           - NoncurrentVersionExpirationInDays: 30
             Status: Enabled
-      VersioningConfiguration:
-        Status: Enabled
   CodeCommitRepo:
     Type: AWS::CodeCommit::Repository
     Properties:
