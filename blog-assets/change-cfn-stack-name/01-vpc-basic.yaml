@@ -1,0 +1,12 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: "Deploys a VPC (qs-1t72ibrq5)"
+
+Resources:
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      Tags:
+        - Key: Name
+          Value: rename-stack-demo

@@ -1,14 +1,25 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Parameters:
-  Tag: 
+  Tag:
     Type: String
 Resources:
   S3Bucket:
     Type: AWS::S3::Bucket
     Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
       Tags:
       - Key: cross-account
         Value: !Ref Tag
+      VersioningConfiguration:
+        Status: Enabled
 Outputs:
   AccountId:
     Value: !Ref AWS::AccountId

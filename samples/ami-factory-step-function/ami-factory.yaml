@@ -18,6 +18,7 @@ Resources:
   SNSTopic:
     Type: AWS::SNS::Topic
     Properties:
+      KmsMasterKeyId: !Sub arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:alias/aws/sns
       Subscription:
         - Endpoint: !Ref NotificationEmail
           Protocol: "email"
